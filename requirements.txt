@@ -1,0 +1,6 @@
+boto3==1.37
+aws-lambda-powertools==3.9
+pydantic==2.10
+aws-xray-sdk==2.14
+requests==2.32
+python-dotenv==1.1
