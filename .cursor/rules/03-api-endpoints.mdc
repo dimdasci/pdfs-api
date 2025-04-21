@@ -1,0 +1,40 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# API Endpoints Reference
+
+All endpoints require Bearer JWT authentication.
+
+## Document Management
+- `POST /documents`
+  - Upload new PDF document
+  - Returns document ID and processing status
+  - Multipart form data with `file` field
+
+- `GET /documents`
+  - List all PDFs for authenticated user
+  - Optional status filter: processing/completed/failed
+  - Supports pagination (limit: 1-100, default: 20)
+
+## Document Details
+- `GET /documents/{docId}`
+  - Retrieve document manifest
+  - Returns page count, sizes, and processing status
+
+- `GET /documents/{docId}/pages/{page}`
+  - Fetch Page Bundle containing:
+    - Full raster URL
+    - Layer URLs and metadata
+    - Object-level details with bounding boxes
+    - Page dimensions
+
+## Response Types
+Key response schemas defined in [docs/api.yaml](mdc:docs/api.yaml):
+- UploadResponse
+- DocumentListItem
+- DocumentSummary
+- PageBundle
+- Layer
+- ObjectMeta

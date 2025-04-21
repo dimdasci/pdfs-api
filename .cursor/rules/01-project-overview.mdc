@@ -1,0 +1,46 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# PDF Structure Analysis Tool - Project Overview
+
+This project implements a serverless API for analyzing PDF documents, providing visual insights into PDF internals to help engineers debug extraction errors. It serves as a centralized showcase MVP that organizes our work and makes it easy to share with others.
+
+## Mission
+- Build a foundation for future enhancements
+- Create a centralized platform for showcasing PDF analysis capabilities
+- Enable easy sharing and collaboration
+
+## Key Principles
+- Maintain balance between simplicity and code quality
+- Avoid over-engineering solutions
+- Optimize for speed to market
+- Design with a small team in mind (2 engineers total)
+
+## Technology Stack
+- Python 3.13
+- AWS Lambda
+- AWS API Gateway
+- AWS DynamoDB
+- AWS S3
+- AWS SAM framework for IaC and CI/CD
+
+## Key Features
+- PDF layer analysis and visualization
+- Interactive layer toggles in browser
+- Object-level metadata export
+- Client-side anomaly detection
+- Secure document handling with encryption
+
+## Documentation
+- Technical Solution: [docs/tech-solution.md](mdc:docs/tech-solution.md)
+- API Specification: [docs/api.yaml](mdc:docs/api.yaml)
+- Technical Assumptions: [docs/technical-assumptions.md](mdc:docs/technical-assumptions.md)
+- Project Plan: [docs/plan.md](mdc:docs/plan.md)
+
+## Security Features
+- Private S3 buckets with SSE-S3 encryption
+- JWT-based authentication
+- Pre-signed URLs for secure asset delivery
+- Least-privilege IAM roles

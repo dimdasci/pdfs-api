@@ -1,0 +1,195 @@
+openapi: 3.1.0
+info:
+  title: PDF Structure Analysis API
+  description: >
+    Minimal HTTP API exposing upload, listing, and page‑bundle retrieval
+    for the browser‑side PDF analyser.
+  version: 0.1.0
+servers:
+  - url: https://app.dimosaic.dev/api/v1
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    DocumentId:
+      name: docId
+      in: path
+      required: true
+      description: Unique document identifier.
+      schema:
+        type: string
+    PageNumber:
+      name: page
+      in: path
+      required: true
+      description: 1‑based page index.
+      schema:
+        type: integer
+        minimum: 1
+  requestBodies:
+    UploadPdf:
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              file:
+                type: string
+                format: binary
+            required: [file]
+  schemas:
+    UploadResponse:
+      type: object
+      properties:
+        document_id: { type: string }
+        status:
+          type: string
+          enum: [processing, completed, failed]
+      required: [document_id, status]
+    DocumentListItem:
+      type: object
+      properties:
+        document_id: { type: string }
+        name: { type: string }
+        status:
+          type: string
+          enum: [processing, completed, failed]
+        page_count: { type: integer }
+        uploaded: { type: string, format: date-time }
+      required: [document_id, name, status, page_count, uploaded]
+    DocumentSummary:
+      type: object
+      properties:
+        document_id: { type: string }
+        status:
+          type: string
+          enum: [processing, completed, failed]
+        pages:
+          type: array
+          items:
+            type: object
+            properties:
+              page: { type: integer, minimum: 1 }
+              width: { type: number }
+              height: { type: number }
+              layer_count: { type: integer }
+            required: [page, width, height, layer_count]
+      required: [document_id, status, pages]
+    Layer:
+      type: object
+      properties:
+        z_index: { type: integer }
+        type:
+          type: string
+          enum: [text, path, image, shade, annot, form]
+        url: { type: string, format: uri }
+        object_count: { type: integer }
+      required: [z_index, type, url, object_count]
+    ObjectMeta:
+      type: object
+      properties:
+        id: { type: string }
+        type:
+          type: string
+          enum: [text, path, image, shade, annot, form]
+        bbox:
+          type: array
+          items: { type: number }
+          minItems: 4
+          maxItems: 4
+        z_index: { type: integer }
+      required: [id, type, bbox, z_index]
+    PageBundle:
+      type: object
+      properties:
+        document_id: { type: string }
+        page: { type: integer }
+        size:
+          type: object
+          properties:
+            width: { type: number }
+            height: { type: number }
+          required: [width, height]
+        full_raster_url: { type: string, format: uri }
+        layers:
+          type: array
+          items: { $ref: "#/components/schemas/Layer" }
+        objects:
+          type: array
+          items: { $ref: "#/components/schemas/ObjectMeta" }
+      required: [document_id, page, size, full_raster_url, layers, objects]
+
+paths:
+  /documents:
+    post:
+      summary: Upload a PDF and start processing.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        $ref: "#/components/requestBodies/UploadPdf"
+      responses:
+        "200":
+          description: Upload accepted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UploadResponse" }
+        "401": { description: Unauthorized }
+    get:
+      summary: List all PDFs for the authenticated user.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          description: Filter by processing status.
+          schema:
+            type: string
+            enum: [processing, completed, failed]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Array of documents.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DocumentListItem" }
+        "401": { description: Unauthorized }
+
+  /documents/{docId}:
+    get:
+      summary: Get high‑level metadata (manifest) for a document.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DocumentId"
+      responses:
+        "200":
+          description: Document summary.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentSummary" }
+        "404": { description: Not found }
+        "401": { description: Unauthorized }
+
+  /documents/{docId}/pages/{page}:
+    get:
+      summary: Fetch the Page Bundle – all layer URLs & object metadata.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DocumentId"
+        - $ref: "#/components/parameters/PageNumber"
+      responses:
+        "200":
+          description: Page bundle.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PageBundle" }
+        "404": { description: Not found }
+        "401": { description: Unauthorized }

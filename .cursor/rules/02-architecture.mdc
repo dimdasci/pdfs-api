@@ -1,0 +1,29 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Architecture Overview
+
+## Core Components
+1. **Frontend**: React SPA hosted on S3 + CloudFront
+2. **API Layer**: HTTP API Gateway v2
+3. **Processing**: Go + pdfium in Fargate, triggered by SQS
+4. **Storage**: S3 buckets (PDFs & PNGs) with SSE-S3 encryption
+5. **Database**: DynamoDB with universal table schema
+
+## Data Flow
+1. Client uploads PDF via API Gateway
+2. Document metadata stored in DynamoDB
+3. SQS triggers Fargate processing
+4. Processed layers stored in S3
+5. Pre-signed URLs generated for secure asset delivery
+
+## DynamoDB Schema
+- Document records: `PK=USER#<uid>`, `SK=PDF#<docId>`
+- Page records: `PK=PDF#<docId>`, `SK=PAGE#<n>`
+- Layer records: `PK=PDF#<docId>`, `SK=LAYER#<z>`
+
+## Key Files
+- API Specification: [docs/api.yaml](mdc:docs/api.yaml)
+- Technical Architecture: [docs/tech-solution.md](mdc:docs/tech-solution.md)

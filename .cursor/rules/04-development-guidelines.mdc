@@ -1,0 +1,95 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Development Guidelines
+
+## Architecture Principles
+- Keep the codebase simple and maintainable
+- Focus on practical solutions over theoretical purity
+- Maintain clear separation of concerns
+- Make code easy to test and debug
+- Use wrappers to abstract external dependencies
+
+## Code Organization
+```
+src/
+├── handlers/                 # Lambda function handlers
+├── services/                 # Business logic layer
+├── repositories/            # Data access layer
+├── models/                  # Domain models
+├── utils/                   # Helper utilities
+├── config/                  # Configuration management
+├── clients/                 # External service wrappers
+│   ├── s3.py               # S3 client wrapper
+│   ├── dynamodb.py         # DynamoDB client wrapper
+│   └── sqs.py              # SQS client wrapper
+└── middleware/              # Cross-cutting concerns
+    ├── error_handler.py     # Global error handling
+    └── logging.py          # Structured logging
+```
+
+### Component Responsibilities
+- **handlers/**: AWS Lambda entry points, request/response handling
+- **services/**: Core business logic and operations
+- **repositories/**: Data access abstraction using client wrappers
+- **models/**: Data structures and validation
+- **utils/**: Reusable helper functions
+- **config/**: Environment and AWS service configuration
+- **clients/**: Wrappers for AWS and external services
+  - Abstract AWS SDK interactions
+  - Provide clean interfaces for services
+  - Make testing and mocking easier
+  - Handle retries and error transformation
+- **middleware/**: Cross-cutting concerns like logging and error handling
+
+## External Service Wrappers
+- Implement wrappers for all AWS service interactions
+- Keep raw AWS SDK usage contained within client wrappers
+- Transform AWS-specific errors into application errors
+- Handle retries and backoff strategies
+- Provide strongly typed interfaces
+- Make mocking in tests straightforward
+
+Example client wrapper:
+```python
+class S3Client:
+    def __init__(self, bucket: str):
+        self.client = boto3.client('s3')
+        self.bucket = bucket
+
+    async def upload_file(self, key: str, data: bytes) -> None:
+        try:
+            await self.client.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=data
+            )
+        except ClientError as e:
+            raise S3UploadError(f"Failed to upload {key}: {str(e)}")
+```
+
+## Best Practices
+- Write clear, self-documenting code
+- Keep functions focused and reasonably sized
+- Write unit tests for business logic
+- Use type hints for better code clarity
+- Handle errors gracefully
+- Log meaningful information
+- Never use AWS SDK directly outside of client wrappers
+
+## AWS Guidelines
+- Use AWS SAM for infrastructure as code
+- Keep Lambda functions focused on single responsibility
+- Use environment variables for configuration
+- Follow least privilege principle for IAM roles
+- Implement proper logging and monitoring
+- Handle AWS service errors appropriately
+
+## Testing Strategy
+- Unit test business logic in services/
+- Mock AWS services using client wrapper interfaces
+- Use integration tests for critical paths
+- Test error handling scenarios
+- Ensure client wrappers handle edge cases
