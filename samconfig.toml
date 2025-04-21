@@ -1,0 +1,18 @@
+version = 0.1
+
+[default]
+stack-name = "pdfa-api-dev"
+region = "eu-central-1"
+profile = "dimds"
+
+[prod]
+[prod.deploy.parameters]
+stack_name = "pdfa-api-prod"
+resolve_s3 = true
+s3_prefix = "pdfa-api"
+region = "eu-central-1"
+profile = "dimds"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+resolve_image_repos = true
+StageName = "prod"

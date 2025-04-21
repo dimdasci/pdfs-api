@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+
+.DS_Store
+.env
+
+.aws-sam/
+.ruff_cache/
