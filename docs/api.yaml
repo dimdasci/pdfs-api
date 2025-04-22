@@ -121,6 +121,11 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ObjectMeta" }
       required: [document_id, page, size, full_raster_url, layers, objects]
+    VersionResponse:
+      type: object
+      properties:
+        version: { type: string }
+      required: [version]
 
 paths:
   /documents:
@@ -193,3 +198,13 @@ paths:
               schema: { $ref: "#/components/schemas/PageBundle" }
         "404": { description: Not found }
         "401": { description: Unauthorized }
+
+  /version:
+    get:
+      summary: Get the API version.
+      responses:
+        "200":
+          description: API version string.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VersionResponse" }
