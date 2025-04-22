@@ -1,131 +1,177 @@
-import json
-import logging
+from datetime import datetime
+from typing import List
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO) # Adjust level based on env var later if needed
+from aws_lambda_powertools.event_handler import APIGatewayHttpResolver, CORSConfig
+from aws_lambda_powertools.logging import Logger
+from aws_lambda_powertools.utilities.typing import LambdaContext
 
-# --- Stub Functions (extracted from previous handlers) ---
+from src.middleware.api import (
+    DocumentListItem,
+    DocumentSummary,
+    Layer,
+    ObjectMeta,
+    PageBundle,
+    PageDetail,
+    PageSize,
+    UploadResponse,
+    VersionResponse,
+)
+from src.middleware.error_handler import error_handler_middleware
 
-def handle_upload(event):
-    logger.info("Handling POST /documents")
-    document_id = "stub-doc-123"
-    status = "UPLOADED"
-    response_body = {"document_id": document_id, "status": status}
-    return 201, response_body
+# Middleware
+from src.middleware.logging import logging_middleware
 
-def handle_list(event):
-    logger.info("Handling GET /documents")
-    # status_filter = event.get('queryStringParameters', {}).get('status')
-    stub_documents = [
-        {"document_id": "stub-doc-123", "name": "example.pdf", "status": "PROCESSING"},
-        {"document_id": "stub-doc-456", "name": "another.pdf", "status": "COMPLETE"}
+# --- Constants and Setup ---
+logger = Logger()
+
+# Configure CORS
+cors_config = CORSConfig(
+    allow_origin="https://dimosaic.dev",
+    allow_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+)
+
+# Initialize API Gateway resolver
+app = APIGatewayHttpResolver(cors=cors_config)
+
+
+# --- API Route Handlers ---
+
+
+@app.get("/version")
+def get_version() -> VersionResponse:
+    """Returns the application version."""
+    display_version = "0.0.1-alpha"
+    logger.info(f"Version requested: {display_version}")
+    return VersionResponse(version=display_version)
+
+
+@app.post("/documents")
+def upload_document() -> UploadResponse:
+    """Handle POST /documents (stub).
+
+    Accepts PDF upload and starts processing.
+    Requires authentication.
+    """
+    # TODO: Implement actual upload logic (S3 presigned URL, etc.)
+    # TODO: Implement authentication check
+    logger.info("Received document upload request (stub)")
+    return UploadResponse(document_id="new-doc-123", status="processing")
+
+
+@app.get("/documents")
+def get_documents() -> List[DocumentListItem]:
+    """Handle GET /documents (stub).
+
+    Returns a list of documents for the user.
+    Requires authentication.
+    Supports filtering and pagination (not implemented in stub).
+    """
+    # TODO: Implement actual data fetching from DB
+    # TODO: Implement authentication check
+    # TODO: Implement filtering (status) and pagination (limit)
+    logger.info("Received get documents request (stub)")
+    return [
+        DocumentListItem(
+            document_id="stub-doc-123",
+            name="example.pdf",
+            status="PROCESSING",
+            page_count=10,
+            uploaded=datetime.utcnow(),
+        ),
+        DocumentListItem(
+            document_id="stub-doc-456",
+            name="another.pdf",
+            status="COMPLETE",
+            page_count=5,
+            uploaded=datetime.utcnow(),
+        ),
     ]
-    return 200, stub_documents
 
-def handle_get_manifest(event):
-    doc_id = event.get('pathParameters', {}).get('docId')
-    logger.info(f"Handling GET /documents/{doc_id}")
-    if not doc_id:
-        return 400, {"error": "Missing docId path parameter"}
-    
-    if doc_id == "stub-doc-123":
-        response_body = {
-            "document_id": doc_id,
-            "name": "example.pdf",
-            "page_count": 5,
-            "page_sizes": [{"width": 612, "height": 792}],
-            "status": "PROCESSING"
-        }
-        return 200, response_body
-    else:
-        return 404, {"error": f"Document {doc_id} not found"}
 
-def handle_get_page_bundle(event):
-    path_params = event.get('pathParameters', {})
-    doc_id = path_params.get('docId')
-    page_str = path_params.get('page')
-    logger.info(f"Handling GET /documents/{doc_id}/pages/{page_str}")
+@app.get("/documents/<docId>")
+def get_document_summary(docId: str) -> DocumentSummary:
+    """Handle GET /documents/{docId} (stub).
 
-    if not doc_id or not page_str:
-        return 400, {"error": "Missing docId or page path parameter"}
+    Returns high-level metadata for a specific document.
+    Requires authentication.
+    """
+    # TODO: Implement actual data fetching for docId
+    # TODO: Implement authentication/authorization check for docId
+    logger.info(f"Received get document summary request for {docId} (stub)")
+    if docId == "nonexistent-doc":  # Simulate not found
+        # TODO: Raise a proper NotFoundError exception
+        raise Exception("Document not found (stub exception)")
 
-    try:
-        page = int(page_str)
-    except ValueError:
-        return 400, {"error": "Invalid page number format"}
+    return DocumentSummary(
+        document_id=docId,
+        status="COMPLETED",
+        pages=[
+            PageDetail(page=1, width=612.0, height=792.0, layer_count=3),
+            PageDetail(page=2, width=612.0, height=792.0, layer_count=2),
+        ],
+    )
 
-    if doc_id == "stub-doc-123" and 1 <= page <= 5:
-        response_body = {
-            "document_id": doc_id,
-            "page": page,
-            "size": { "width": 612, "height": 792 },
-            "full_raster_url": f"https://s3.placeholder.url/raster/{doc_id}/page{page}/full.png?sig=placeholder",
-            "layers": [
-                { "z_index": 1, "type": "path", "url": f"https://s3.placeholder.url/layer/{doc_id}/page{page}/layer-z01.png?sig=placeholder", "object_count": 10 + page },
-                { "z_index": 2, "type": "text", "url": f"https://s3.placeholder.url/layer/{doc_id}/page{page}/layer-z02.png?sig=placeholder", "object_count": 50 + page }
-            ],
-            "objects": [
-                { "id": f"obj_stub_{page}_1", "type": "text", "bbox": [100.0 + page, 700.0, 120.0 + page, 710.0], "z_index": 2 },
-                { "id": f"obj_stub_{page}_2", "type": "path", "bbox": [50.0, 50.0 + page, 150.0, 150.0 + page], "z_index": 1 }
-            ]
-        }
-        return 200, response_body
-    elif doc_id != "stub-doc-123":
-        return 404, {"error": f"Document {doc_id} not found"}
-    else:
-         return 404, {"error": f"Page {page} not found for document {doc_id}"}
 
-# --- Router --- 
+@app.get("/documents/<docId>/pages/<page>")
+def get_page_bundle(docId: str, page: str) -> PageBundle:
+    """Handle GET /documents/{docId}/pages/{page} (stub).
 
-def lambda_handler(event, context):
-    """Handles all incoming API Gateway requests and routes them."""
-    logger.info("Received event: %s", json.dumps(event))
+    Fetches the Page Bundle (layer URLs, object metadata) for a page.
+    Requires authentication.
+    """
+    # TODO: Implement actual data fetching for docId and page
+    # TODO: Implement authentication/authorization check
+    # TODO: Validate page number against document page count
+    logger.info(f"Received get page bundle request for {docId}, page {page} (stub)")
+    if docId == "nonexistent-doc" or int(page) > 2:  # Simulate not found
+        # TODO: Raise a proper NotFoundError exception
+        raise Exception("Page not found (stub exception)")
 
-    http_method = event.get('requestContext', {}).get('http', {}).get('method')
-    path = event.get('requestContext', {}).get('http', {}).get('path')
-    
-    status_code = 500
-    response_body = {"error": "Internal server error"}
+    # Generate dummy URLs safely using Pydantic's HttpUrl
+    dummy_base_url = "https://dummy.storage.local/"
 
-    try:
-        # Simple path-based routing
-        if path == '/documents':
-            if http_method == 'POST':
-                status_code, response_body = handle_upload(event)
-            elif http_method == 'GET':
-                status_code, response_body = handle_list(event)
-            else:
-                status_code = 405 # Method Not Allowed
-                response_body = {"error": f"Method {http_method} not allowed for {path}"}
-        
-        # Using pathParameters check for specific document/page routes
-        elif 'docId' in event.get('pathParameters', {}):
-            if 'page' in event.get('pathParameters', {}):
-                 if http_method == 'GET':
-                     status_code, response_body = handle_get_page_bundle(event)
-                 else:
-                     status_code = 405
-                     response_body = {"error": f"Method {http_method} not allowed for {path}"}
-            else: # Only docId is present
-                 if http_method == 'GET':
-                     status_code, response_body = handle_get_manifest(event)
-                 else:
-                     status_code = 405
-                     response_body = {"error": f"Method {http_method} not allowed for {path}"}
-        else:
-            status_code = 404
-            response_body = {"error": f"Path {path} not found"}
+    return PageBundle(
+        document_id=docId,
+        page=page,
+        size=PageSize(width=612.0, height=792.0),
+        full_raster_url=f"{dummy_base_url}{docId}/page{page}/raster.png",
+        layers=[
+            Layer(
+                z_index=0,
+                type="text",
+                url=f"{dummy_base_url}{docId}/page{page}/layer0.json",
+                object_count=15,
+            ),
+            Layer(
+                z_index=1,
+                type="image",
+                url=f"{dummy_base_url}{docId}/page{page}/layer1.json",
+                object_count=2,
+            ),
+        ],
+        objects=[
+            ObjectMeta(
+                id="obj1", type="text", bbox=[10.0, 10.0, 100.0, 50.0], z_index=0
+            ),
+            ObjectMeta(
+                id="obj2", type="image", bbox=[150.0, 150.0, 300.0, 400.0], z_index=1
+            ),
+        ],
+    )
 
-    except Exception as e:
-        logger.exception("Error handling request")
-        # Keep status_code 500 and default error message
-        pass # Error already logged, return 500
 
-    return {
-        "statusCode": status_code,
-        "headers": {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*" # Replace with !Ref CorsAllowedOrigin later via env var
-        },
-        "body": json.dumps(response_body)
-    } 
+# --- Main Lambda Entry Point ---
+@error_handler_middleware
+@logging_middleware
+def lambda_handler(event: dict, context: LambdaContext) -> dict:
+    """Main Lambda handler function.
+
+    Args:
+        event: API Gateway proxy event
+        context: Lambda context object
+
+    Returns:
+        API Gateway proxy response
+    """
+    return app.resolve(event, context)

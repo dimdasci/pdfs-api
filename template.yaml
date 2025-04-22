@@ -52,7 +52,7 @@ Resources:
   ApiGatewayLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/apigateway/${PdfAnalysisHttpApi}-access-logs
+      LogGroupName: !Sub /aws/apigateway/pdfa-api-${StageName}-access
       RetentionInDays: 5
 
   PdfAnalysisHttpApi:
@@ -150,6 +150,13 @@ Resources:
             ApiId: !Ref PdfAnalysisHttpApi
             Auth:
               Authorizer: JwtAuthorizer
+        GetVersionApi:
+          Type: HttpApi
+          Properties:
+            Path: /version
+            Method: get
+            ApiId: !Ref PdfAnalysisHttpApi
+            # No Auth needed for this endpoint
       Policies:
         # Combined policies needed for all routes
         - S3WritePolicy:
