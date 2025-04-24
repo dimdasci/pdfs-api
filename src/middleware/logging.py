@@ -1,5 +1,6 @@
 import os
 import threading
+
 import psutil
 from aws_lambda_powertools.logging import Logger
 from aws_lambda_powertools.middleware_factory import lambda_handler_decorator

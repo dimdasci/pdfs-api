@@ -10,7 +10,8 @@
         "user-agent": "curl/7.64.1",
         "x-forwarded-proto": "http",
         "x-forwarded-port": "3000",
-        "x-forwarded-for": "127.0.0.1"
+        "x-forwarded-for": "127.0.0.1",
+        "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJ1c2VyIjoidGVzdC11c2VyLTEyMyJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
     },
     "requestContext": {
         "accountId": "123456789012",
@@ -27,8 +28,15 @@
         "requestId": "id",
         "routeKey": "GET /documents",
         "stage": "$default",
-        "time": "12/Mar/2024:19:03:58 +0000",
-        "timeEpoch": 1710277438000
+        "time": "24/Apr/2025:14:21:18 +0000",
+        "timeEpoch": 1745504478251,
+        "authorizer": {
+            "lambda": {
+                "issueTime": "2025-04-24T14:21:08+00:00",
+                "userId": "test-user-from-lambda-auth-123",
+                "customKey": "customValue"
+            }
+        }
     },
     "isBase64Encoded": false
 } 

@@ -5,6 +5,7 @@ from aws_lambda_powertools.event_handler import APIGatewayHttpResolver, CORSConf
 from aws_lambda_powertools.logging import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
+from src.config.app import AppConfig
 from src.middleware.api import (
     DocumentListItem,
     DocumentSummary,
@@ -16,9 +17,8 @@ from src.middleware.api import (
     UploadResponse,
     VersionResponse,
 )
+from src.middleware.auth import create_inject_user_context_decorator
 from src.middleware.error_handler import error_handler_middleware
-
-# Middleware
 from src.middleware.logging import logging_middleware
 
 # --- Constants and Setup ---
@@ -34,53 +34,80 @@ cors_config = CORSConfig(
 # Initialize API Gateway resolver
 app = APIGatewayHttpResolver(cors=cors_config)
 
+# --- Load Configuration and Initialize Services ---
+try:
+    app_config = AppConfig.from_env()
+    logger.info(
+        "Configuration loaded successfully.",
+        extra={
+            "app_env": app_config.app_env,
+            "version": app_config.version,
+            "commit_hash": app_config.commit_hash,
+        },
+    )
+except Exception as e:
+    logger.exception("CRITICAL: Failed to load configuration or initialize services.")
+    # This error prevents the Lambda from functioning, raise to indicate failure
+    raise RuntimeError(f"Initialization error: {e}") from e
+
+# --- Create User Context Decorator Instance ---
+# Call the factory with the initialized app and logger
+inject_user_context = create_inject_user_context_decorator(app, logger)
+
 
 # --- API Route Handlers ---
-
-
 @app.get("/version")
 def get_version() -> VersionResponse:
     """Returns the application version."""
-    display_version = "0.0.1-alpha"
+    display_version = f"{app_config.version}-B:{app_config.commit_hash[:7]}-{app_config.app_env[0].upper()}"
     logger.info(f"Version requested: {display_version}")
     return VersionResponse(version=display_version)
 
 
 @app.post("/documents")
+@inject_user_context
 def upload_document() -> UploadResponse:
     """Handle POST /documents (stub).
 
     Accepts PDF upload and starts processing.
-    Requires authentication.
+    Requires authentication (handled by API Gateway Authorizer).
+    User context is injected by @inject_user_context.
     """
-    # TODO: Implement actual upload logic (S3 presigned URL, etc.)
-    # TODO: Implement authentication check
+    user_id = app.context.get("user_id", "unknown_context_fallback")
+    logger.info("Executing upload_document", extra={"user_id": user_id})
+
+    # TODO: Implement actual upload logic (S3 presigned URL, etc.) using user_id
     logger.info("Received document upload request (stub)")
     return UploadResponse(document_id="new-doc-123", status="processing")
 
 
 @app.get("/documents")
+@inject_user_context
 def get_documents() -> List[DocumentListItem]:
     """Handle GET /documents (stub).
 
     Returns a list of documents for the user.
-    Requires authentication.
+    Requires authentication (handled by API Gateway Authorizer).
+    User context is injected by @inject_user_context.
     Supports filtering and pagination (not implemented in stub).
     """
-    # TODO: Implement actual data fetching from DB
-    # TODO: Implement authentication check
+    user_id = app.context.get("user_id", "unknown_context_fallback")
+    logger.info("Executing get_documents", extra={"user_id": user_id})
+
+    # TODO: Implement actual data fetching from DB (filtered by user_id)
     # TODO: Implement filtering (status) and pagination (limit)
     logger.info("Received get documents request (stub)")
+    # Example: Add user_id to stub data if needed for demonstration
     return [
         DocumentListItem(
-            document_id="stub-doc-123",
+            document_id=f"stub-doc-123-{user_id[:4]}",  # Example usage
             name="example.pdf",
             status="PROCESSING",
             page_count=10,
             uploaded=datetime.utcnow(),
         ),
         DocumentListItem(
-            document_id="stub-doc-456",
+            document_id=f"stub-doc-456-{user_id[:4]}",  # Example usage
             name="another.pdf",
             status="COMPLETE",
             page_count=5,
@@ -90,18 +117,30 @@ def get_documents() -> List[DocumentListItem]:
 
 
 @app.get("/documents/<docId>")
+@inject_user_context
 def get_document_summary(docId: str) -> DocumentSummary:
     """Handle GET /documents/{docId} (stub).
 
     Returns high-level metadata for a specific document.
-    Requires authentication.
+    Requires authentication (handled by API Gateway Authorizer).
+    User context is injected by @inject_user_context.
     """
-    # TODO: Implement actual data fetching for docId
-    # TODO: Implement authentication/authorization check for docId
+    user_id = app.context.get("user_id", "unknown_context_fallback")
+    logger.info(
+        "Executing get_document_summary", extra={"user_id": user_id, "docId": docId}
+    )
+
+    # TODO: Implement actual data fetching for docId (checking ownership using user_id)
     logger.info(f"Received get document summary request for {docId} (stub)")
-    if docId == "nonexistent-doc":  # Simulate not found
-        # TODO: Raise a proper NotFoundError exception
-        raise Exception("Document not found (stub exception)")
+    if docId.startswith("nonexistent-doc") or not docId.endswith(
+        user_id[:4]
+    ):  # Simulate auth check
+        # TODO: Raise a proper NotFoundError or ForbiddenError exception
+        logger.warning(
+            "Attempt to access non-existent or unauthorized doc",
+            extra={"user_id": user_id, "docId": docId},
+        )
+        raise Exception("Document not found or access denied (stub exception)")
 
     return DocumentSummary(
         document_id=docId,
@@ -114,19 +153,36 @@ def get_document_summary(docId: str) -> DocumentSummary:
 
 
 @app.get("/documents/<docId>/pages/<page>")
+@inject_user_context
 def get_page_bundle(docId: str, page: str) -> PageBundle:
     """Handle GET /documents/{docId}/pages/{page} (stub).
 
     Fetches the Page Bundle (layer URLs, object metadata) for a page.
-    Requires authentication.
+    Requires authentication (handled by API Gateway Authorizer).
+    User context is injected by @inject_user_context.
     """
-    # TODO: Implement actual data fetching for docId and page
-    # TODO: Implement authentication/authorization check
+    user_id = app.context.get("user_id", "unknown_context_fallback")
+    logger.info(
+        "Executing get_page_bundle",
+        extra={"user_id": user_id, "docId": docId, "page": page},
+    )
+
+    # TODO: Implement actual data fetching for docId and page (checking ownership using user_id)
     # TODO: Validate page number against document page count
     logger.info(f"Received get page bundle request for {docId}, page {page} (stub)")
-    if docId == "nonexistent-doc" or int(page) > 2:  # Simulate not found
-        # TODO: Raise a proper NotFoundError exception
-        raise Exception("Page not found (stub exception)")
+
+    # Simulate auth check and existence
+    if (
+        docId.startswith("nonexistent-doc")
+        or not docId.endswith(user_id[:4])
+        or int(page) > 2
+    ):
+        # TODO: Raise a proper NotFoundError or ForbiddenError exception
+        logger.warning(
+            "Attempt to access non-existent or unauthorized page",
+            extra={"user_id": user_id, "docId": docId, "page": page},
+        )
+        raise Exception("Page not found or access denied (stub exception)")
 
     # Generate dummy URLs safely using Pydantic's HttpUrl
     dummy_base_url = "https://dummy.storage.local/"
@@ -174,4 +230,5 @@ def lambda_handler(event: dict, context: LambdaContext) -> dict:
     Returns:
         API Gateway proxy response
     """
+    # Logging of claims will now be handled within individual route handlers using app.current_event
     return app.resolve(event, context)

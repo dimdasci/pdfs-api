@@ -4,3 +4,4 @@ pydantic==2.10
 aws-xray-sdk==2.14
 requests==2.32
 python-dotenv==1.1
+psutil==7.0
