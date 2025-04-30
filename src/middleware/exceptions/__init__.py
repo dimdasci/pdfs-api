@@ -11,7 +11,7 @@ class PDFAnalysisError(Exception):
         message: str,
         code: str,
         details: Optional[Dict[str, Any]] = None,
-        status_code: int = 500
+        status_code: int = 500,
     ):
         super().__init__(message)
         self.message = message
@@ -20,12 +20,7 @@ class PDFAnalysisError(Exception):
         self.status_code = status_code
 
 
-from .api import (
-    BadRequestError,
-    NotFoundError,
-    ForbiddenError,
-    UnauthorizedError,
-)
+from .api import BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError
 from .business import (
     DocumentProcessingError,
     InvalidDocumentStateError,
@@ -33,33 +28,32 @@ from .business import (
     PDFValidationError,
 )
 from .storage import (
-    StorageError,
+    DocumentAlreadyExistsError,
     DocumentNotFoundError,
     PageNotFoundError,
     StorageAccessError,
+    StorageError,
     StorageValidationError,
 )
 
 __all__ = [
     # Base
-    'PDFAnalysisError',
-    
+    "PDFAnalysisError",
     # API Errors
-    'BadRequestError',
-    'NotFoundError',
-    'ForbiddenError',
-    'UnauthorizedError',
-    
+    "BadRequestError",
+    "NotFoundError",
+    "ForbiddenError",
+    "UnauthorizedError",
     # Business Errors
-    'DocumentProcessingError',
-    'InvalidDocumentStateError',
-    'InvalidPageError',
-    'PDFValidationError',
-    
+    "DocumentProcessingError",
+    "InvalidDocumentStateError",
+    "InvalidPageError",
+    "PDFValidationError",
     # Storage Errors
-    'StorageError',
-    'DocumentNotFoundError',
-    'PageNotFoundError',
-    'StorageAccessError',
-    'StorageValidationError',
-] 
+    "StorageError",
+    "DocumentAlreadyExistsError",
+    "DocumentNotFoundError",
+    "PageNotFoundError",
+    "StorageAccessError",
+    "StorageValidationError",
+]

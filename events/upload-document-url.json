@@ -1,11 +1,11 @@
 {
     "version": "2.0",
-    "routeKey": "GET /documents",
+    "routeKey": "POST /documents",
     "rawPath": "/documents",
     "rawQueryString": "",
     "headers": {
-        "accept": "application/json",
-        "content-length": "0",
+        "accept": "multipart/form-data",
+        "content-type": "multipart/form-data",
         "host": "localhost:3000",
         "user-agent": "curl/7.64.1",
         "x-forwarded-proto": "http",
@@ -19,14 +19,14 @@
         "domainName": "localhost:3000",
         "domainPrefix": "localhost",
         "http": {
-            "method": "GET",
+            "method": "POST",
             "path": "/documents",
             "protocol": "HTTP/1.1",
             "sourceIp": "127.0.0.1",
             "userAgent": "curl/7.64.1"
         },
         "requestId": "id",
-        "routeKey": "GET /documents",
+        "routeKey": "POST /documents",
         "stage": "$default",
         "time": "24/Apr/2025:14:21:18 +0000",
         "timeEpoch": 1745504478251,
@@ -38,5 +38,6 @@
             }
         }
     },
+    "body": "{\"documentName\":\"thesis.pdf\",\"url\":\"https://cs.siu.edu/files/thesis.pdf\"}",
     "isBase64Encoded": false
 } 

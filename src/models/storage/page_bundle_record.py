@@ -1,23 +1,23 @@
 """Page bundle storage model for DynamoDB."""
 
 from datetime import datetime
-from typing import List
+from typing import Any, Dict, List
 
 from pydantic import BaseModel, Field
 
 from ..domain.enums import PDFObjectType
 from ..domain.page import Page
-from .base_record import BaseRecord
 
 
 class LayerInfo(BaseModel):
     """Information about a layer in a page bundle.
-    
+
     Attributes:
         z_index: Z-index for rendering order
         type: Type of objects in this layer
         object_count: Number of objects in this layer
     """
+
     z_index: int = Field(..., description="Z-index for rendering order")
     type: PDFObjectType = Field(..., description="Type of objects in this layer")
     object_count: int = Field(..., ge=0, description="Number of objects in this layer")
@@ -25,29 +25,30 @@ class LayerInfo(BaseModel):
 
 class ObjectInfo(BaseModel):
     """Information about a PDF object in a page bundle.
-    
+
     Attributes:
         id: Unique object identifier
         type: Type of PDF object
         bbox: Bounding box coordinates [x1, y1, x2, y2]
         z_index: Z-index for rendering order
     """
+
     id: str = Field(..., description="Unique object identifier")
     type: PDFObjectType = Field(..., description="Type of PDF object")
     bbox: List[float] = Field(
         ...,
         min_items=4,
         max_items=4,
-        description="Bounding box coordinates [x1, y1, x2, y2]"
+        description="Bounding box coordinates [x1, y1, x2, y2]",
     )
     z_index: int = Field(..., description="Z-index for rendering order")
 
 
-class PageBundleRecord(BaseRecord):
+class PageBundleRecord(BaseModel):
     """DynamoDB record for a page bundle.
-    
+
     Maps between domain Page model and DynamoDB storage format.
-    
+
     Attributes:
         user_id: ID of the user who owns this document
         document_id: Unique document identifier
@@ -59,6 +60,7 @@ class PageBundleRecord(BaseRecord):
         objects: List of object information
         processed: Processing timestamp
     """
+
     user_id: str = Field(..., description="ID of the user who owns this document")
     document_id: str = Field(..., description="Unique document identifier")
     page_number: int = Field(..., gt=0, description="Page number (1-based)")
@@ -80,36 +82,31 @@ class PageBundleRecord(BaseRecord):
         return f"PDF#{self.document_id}#PAGE#{self.page_number}"
 
     @classmethod
-    def from_domain(cls, page: Page, user_id: str, document_id: str) -> "PageBundleRecord":
+    def from_domain(
+        cls, page: Page, user_id: str, document_id: str
+    ) -> "PageBundleRecord":
         """Create PageBundleRecord from domain Page.
-        
+
         Args:
             page: Domain Page instance
             user_id: ID of the user who owns this document
             document_id: Unique document identifier
-            
+
         Returns:
             PageBundleRecord instance
         """
         layers = [
             LayerInfo(
-                z_index=layer.z_index,
-                type=layer.type,
-                object_count=layer.object_count
+                z_index=layer.z_index, type=layer.type, object_count=layer.object_count
             )
             for layer in page.layers.values()
         ]
-        
+
         objects = [
-            ObjectInfo(
-                id=obj.id,
-                type=obj.type,
-                bbox=obj.bbox,
-                z_index=obj.z_index
-            )
+            ObjectInfo(id=obj.id, type=obj.type, bbox=obj.bbox, z_index=obj.z_index)
             for obj in page.objects
         ]
-        
+
         return cls(
             user_id=user_id,
             document_id=document_id,
@@ -119,12 +116,12 @@ class PageBundleRecord(BaseRecord):
             full_raster_url=page.full_raster_url,
             layers=layers,
             objects=objects,
-            processed=datetime.utcnow()
+            processed=datetime.utcnow(),
         )
 
     def to_domain(self) -> Page:
         """Convert to domain Page.
-        
+
         Returns:
             Domain Page instance
         """
@@ -132,5 +129,47 @@ class PageBundleRecord(BaseRecord):
             number=self.page_number,
             width=self.width,
             height=self.height,
-            full_raster_url=self.full_raster_url
-        ) 
+            full_raster_url=self.full_raster_url,
+        )
+
+    def to_dynamo(self) -> Dict[str, Any]:
+        """Convert to DynamoDB item.
+
+        Returns:
+            DynamoDB item
+        """
+        return {
+            "PK": self.pk,
+            "SK": self.sk,
+            "Type": "PageBundle",
+            "DocumentId": self.document_id,
+            "PageNumber": self.page_number,
+            "Width": self.width,
+            "Height": self.height,
+            "FullRasterUrl": self.full_raster_url,
+            "Layers": [layer.model_dump() for layer in self.layers],
+            "Objects": [obj.model_dump() for obj in self.objects],
+            "Processed": self.processed.isoformat(),
+        }
+
+    @classmethod
+    def from_dynamo(cls, item: Dict[str, Any]) -> "PageBundleRecord":
+        """Create PageBundleRecord from DynamoDB item.
+
+        Args:
+            item: DynamoDB item
+
+        Returns:
+            PageBundleRecord instance
+        """
+        return cls(
+            user_id=item.get("UserId"),
+            document_id=item.get("DocumentId"),
+            page_number=item.get("PageNumber"),
+            width=item.get("Width"),
+            height=item.get("Height"),
+            full_raster_url=item.get("FullRasterUrl"),
+            layers=[LayerInfo(**layer) for layer in item.get("Layers", [])],
+            objects=[ObjectInfo(**obj) for obj in item.get("Objects", [])],
+            processed=datetime.fromisoformat(item.get("Processed")),
+        )

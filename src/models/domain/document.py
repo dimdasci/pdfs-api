@@ -1,8 +1,8 @@
 """Document domain model."""
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Union
 from enum import Enum
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -12,15 +12,16 @@ from .page import Page
 
 class DocumentSource(str, Enum):
     """Source of the document."""
+
     FILE = "file"
     URL = "url"
 
 
 class Document(BaseModel):
     """A PDF document being analyzed.
-    
+
     This is the aggregate root for the PDF analysis domain.
-    
+
     Attributes:
         id: Unique document identifier
         user_id: ID of the user who owns this document
@@ -31,29 +32,24 @@ class Document(BaseModel):
         uploaded: Upload timestamp
         pages: Dictionary of pages by page number
     """
+
     id: str = Field(..., description="Unique document identifier")
     user_id: str = Field(..., description="ID of the user who owns this document")
     name: str = Field(..., description="User-provided name for the document")
     source: DocumentSource = Field(..., description="How the document was provided")
     source_url: Optional[HttpUrl] = Field(
-        None,
-        description="Original URL if document was fetched from URL"
+        None, description="Original URL if document was fetched from URL"
     )
     status: ProcessingStatus = Field(
-        default=ProcessingStatus.PROCESSING,
-        description="Current processing status"
+        default=ProcessingStatus.PROCESSING, description="Current processing status"
     )
     uploaded: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        description="Upload timestamp"
+        description="Upload timestamp",
     )
     pages: Dict[int, Page] = Field(
-        default_factory=dict,
-        description="Dictionary of pages by page number"
+        default_factory=dict, description="Dictionary of pages by page number"
     )
-
-    class Config:
-        allow_mutation = True  # Allow state changes for domain logic
 
     @property
     def page_count(self) -> int:
@@ -62,10 +58,10 @@ class Document(BaseModel):
 
     def update_status(self, new_status: ProcessingStatus) -> None:
         """Update document status if transition is valid.
-        
+
         Args:
             new_status: New status to transition to
-            
+
         Raises:
             ValueError: If status transition is invalid
         """
@@ -77,10 +73,10 @@ class Document(BaseModel):
 
     def add_page(self, page: Page) -> None:
         """Add a page to the document.
-        
+
         Args:
             page: Page to add
-            
+
         Raises:
             ValueError: If page number already exists
         """
@@ -105,4 +101,4 @@ class Document(BaseModel):
     @property
     def dynamo_sk(self) -> str:
         """Get DynamoDB sort key."""
-        return f"PDF#{self.id}" 
+        return f"PDF#{self.id}"

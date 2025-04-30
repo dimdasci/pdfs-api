@@ -11,7 +11,7 @@ from .pdf_object import PDFObject
 
 class Page(BaseModel):
     """A single page from a PDF document.
-    
+
     Attributes:
         number: Page number (1-based)
         width: Page width in points
@@ -19,27 +19,23 @@ class Page(BaseModel):
         layers: Dictionary of layers by z-index
         objects: List of PDF objects on this page
     """
+
     number: int = Field(..., gt=0, description="Page number (1-based)")
     width: float = Field(..., gt=0, description="Page width in points")
     height: float = Field(..., gt=0, description="Page height in points")
     layers: Dict[int, Layer] = Field(
-        default_factory=dict,
-        description="Dictionary of layers by z-index"
+        default_factory=dict, description="Dictionary of layers by z-index"
     )
     objects: List[PDFObject] = Field(
-        default_factory=list,
-        description="List of PDF objects on this page"
+        default_factory=list, description="List of PDF objects on this page"
     )
-
-    class Config:
-        allow_mutation = True  # Allow state changes for domain logic
 
     def add_layer(self, layer: Layer) -> None:
         """Add a layer to the page.
-        
+
         Args:
             layer: Layer to add
-            
+
         Raises:
             ValueError: If layer with same z-index exists
         """
@@ -49,10 +45,10 @@ class Page(BaseModel):
 
     def add_object(self, obj: PDFObject) -> None:
         """Add a PDF object to the page.
-        
+
         Args:
             obj: PDF object to add
         """
         self.objects.append(obj)
         if obj.z_index not in self.layers:
-            self.add_layer(Layer(z_index=obj.z_index, type=obj.type)) 
+            self.add_layer(Layer(z_index=obj.z_index, type=obj.type))
