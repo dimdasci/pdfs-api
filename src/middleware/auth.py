@@ -19,12 +19,9 @@ def create_inject_user_context_decorator(
             try:
                 # Extract userId from the Lambda authorizer's context output
                 # Accessing via app instance passed to the factory
-                auth_context = (
-                    app.current_event.request_context.authorizer.lambda_context
-                )
-                user_id = auth_context.get(
-                    "userId"
-                )  # The key provided by the authorizer
+                auth_context = app.current_event.request_context.authorizer
+                lambda_context = auth_context.get_context()
+                user_id = lambda_context.get("userId")
 
                 if user_id:
                     app.append_context(user_id=user_id)
@@ -33,18 +30,15 @@ def create_inject_user_context_decorator(
                         extra={"user_id": user_id},
                     )
                 else:
-                    logger.warning("'userId' missing in Lambda authorizer context.")
-                    app.append_context(
-                        user_id="unknown_missing_userId"
-                    )  # Indicate issue
+                    logger.warning(
+                        "'userId' missing in Lambda authorizer context.",
+                        extra={"lambda_context": lambda_context},
+                    )
 
             except (AttributeError, KeyError):
                 logger.exception(
                     "Could not retrieve Lambda authorizer context or userId. Check authorizer configuration and response format."
                 )
-                # Decide how to handle this - raise error or proceed with unknown user?
-                # For now, append unknown and log error.
-                app.append_context(user_id="unknown_no_auth_context")  # Indicate issue
 
             # Execute the original handler function
             return func(*args, **kwargs)
