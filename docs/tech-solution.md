@@ -67,8 +67,9 @@ All routes require `Authorization: Bearer <JWT>`.
 | Entity | PK | SK |
 |--------|----|----|
 | Document | `USER#<uid>` | `PDF#<docId>` |
-| Page | `PDF#<docId>` | `PAGE#<n>` |
-| Layer | `PDF#<docId>` | `LAYER#<z>` |
+| Page | `USER#<uid>` | `PDF#<docId>PAGE#<n>` |
+
+Layer is an element of the Page entity.
 
 Objects JSON is stored in S3; DynamoDB only keeps pointers & counts.
 

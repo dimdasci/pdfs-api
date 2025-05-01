@@ -1,11 +1,9 @@
 """Repository for document data access operations."""
 
 import uuid
-from typing import Optional
 
-from ..clients.dynamodb import DynamoDBClient
+from ..clients.storage_facade import StorageFacade
 from ..models.domain.document import Document
-from ..models.storage.document_record import DocumentRecord
 
 
 class DocumentRepository:
@@ -13,14 +11,14 @@ class DocumentRepository:
 
     def __init__(
         self,
-        dynamodb_client: DynamoDBClient,
+        storage_facade: StorageFacade,
     ) -> None:
         """Initialize document repository.
 
         Args:
-            dynamodb_client: Client for DynamoDB operations
+            storage_facade: Facade for storage operations
         """
-        self.dynamodb_client = dynamodb_client
+        self.storage_facade = storage_facade
 
     def generate_document_id(self) -> str:
         """Generate a unique document ID.
@@ -30,45 +28,10 @@ class DocumentRepository:
         """
         return f"doc_{uuid.uuid4().hex[:8]}"
 
-    async def save_document(self, document: Document) -> None:
-        """Save a new document record to DynamoDB.
+    def save_document(self, document: Document) -> None:
+        """Save a new document record using the storage facade."""
+        self.storage_facade.save_document(document)
 
-        Args:
-            document: Document domain object to save
-
-        Raises:
-            DocumentAlreadyExistsError: If document already exists
-            StorageError: If the save operation fails
-        """
-        # Convert to storage model
-        record = DocumentRecord.from_domain(document)
-
-        # Store in DynamoDB using the client
-        await self.dynamodb_client.put_item(record.to_dynamo())
-
-    async def get_document_by_id(
-        self, user_id: str, document_id: str
-    ) -> Optional[Document]:
-        """Get a document by user ID and document ID.
-
-        Args:
-            user_id: ID of the user who owns the document
-            document_id: ID of the document to get
-
-        Returns:
-            Document domain object if found, None otherwise
-
-        Raises:
-            StorageError: If the get operation fails
-        """
-        # Get from DynamoDB using the client
-        item = await self.dynamodb_client.get_item(
-            pk=f"USER#{user_id}", sk=f"PDF#{document_id}"
-        )
-
-        if not item:
-            return None
-
-        # Convert to domain model using the new classmethod
-        record = DocumentRecord.from_dynamo(item)
-        return record.to_domain()
+    def get_document_by_id(self, user_id: str, document_id: str) -> Document:
+        """Get a document by user ID and document ID using the storage facade."""
+        return self.storage_facade.get_document_by_id(user_id, document_id)

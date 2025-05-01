@@ -1,4 +1,3 @@
-import asyncio
 import functools  # Import functools for partial
 from datetime import datetime, timezone
 from typing import List
@@ -211,7 +210,8 @@ def get_page_bundle(docId: str, page: str) -> PageBundle:
 
 @app.post("/documents")
 @inject_user_context
-def post_documents_route():  # Wrapper function to handle dependency injection
+def post_documents_route():
+    """Handle POST /documents request."""
     # Use functools.partial to pass dependencies to the actual handler
     bound_handler = functools.partial(
         handle_upload_document,
@@ -221,7 +221,7 @@ def post_documents_route():  # Wrapper function to handle dependency injection
         s3_client=s3_client,
         logger=logger,
     )
-    return asyncio.run(bound_handler())
+    return bound_handler()
 
 
 # --- Main Lambda Entry Point ---

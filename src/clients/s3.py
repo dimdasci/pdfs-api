@@ -22,7 +22,7 @@ class S3Client:
         self.s3 = boto3.client("s3")
         self.bucket = config.pdf_bucket_name
 
-    async def generate_presigned_url(self, key: str, expires_in: int = 3600) -> str:
+    def generate_presigned_url(self, key: str, expires_in: int = 3600) -> str:
         """Generate a presigned URL for uploading a file.
 
         Args:
@@ -53,7 +53,7 @@ class S3Client:
                 details={"e": str(e)},
             )
 
-    async def upload_file(self, key: str, content: bytes) -> None:
+    def upload_file(self, key: str, content: bytes) -> None:
         """Upload a file to S3.
 
         Args:
@@ -78,7 +78,7 @@ class S3Client:
                 details={"e": str(e)},
             )
 
-    async def get_object_url(self, key: str, expires_in: Optional[int] = None) -> str:
+    def get_object_url(self, key: str, expires_in: Optional[int] = None) -> str:
         """Get a URL for an S3 object.
 
         Args:
@@ -108,7 +108,7 @@ class S3Client:
                 details={"e": str(e)},
             )
 
-    async def delete_object(self, key: str) -> None:
+    def delete_object(self, key: str) -> None:
         """Delete an object from S3.
 
         Args:

@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 import boto3
 from aws_lambda_powertools.logging import Logger
 from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 
 from ..config.app import AppConfig
 from ..middleware.exceptions import (
@@ -30,7 +31,7 @@ class DynamoDBClient:
         self.dynamodb = boto3.resource("dynamodb")
         self.table = self.dynamodb.Table(config.dynamodb_table_name)
 
-    async def put_item(self, item: Dict[str, Any]) -> None:
+    def put_item(self, item: Dict[str, Any]) -> None:
         """Put an item in DynamoDB.
 
         Args:
@@ -40,7 +41,6 @@ class DynamoDBClient:
             DocumentAlreadyExistsError: If item already exists
             StorageError: If put operation fails
         """
-
         logger.debug(
             "Putting item in DynamoDB",
             extra={
@@ -55,18 +55,19 @@ class DynamoDBClient:
             self.table.put_item(
                 Item=item, ConditionExpression="attribute_not_exists(PK)"
             )
-        except self.dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
-            raise DocumentAlreadyExistsError(
-                f"Document with PK {item['PK']} and SK {item['SK']} already exists"
-            )
-        except Exception as e:
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code == "ConditionalCheckFailedException":
+                raise DocumentAlreadyExistsError(
+                    f"Document with PK {item['PK']} and SK {item['SK']} already exists"
+                )
             raise StorageError(
                 f"Failed to put item in DynamoDB",
                 code="put_item_failed",
-                details={"e": str(e)},
+                details={"error": str(e)},
             )
 
-    async def get_item(self, pk: str, sk: str) -> Optional[Dict[str, Any]]:
+    def get_item(self, pk: str, sk: str) -> Dict[str, Any]:
         """Get an item from DynamoDB.
 
         Args:
@@ -74,56 +75,82 @@ class DynamoDBClient:
             sk: Sort key
 
         Returns:
-            Item if found, None otherwise
+            Item if found
 
         Raises:
+            DocumentNotFoundError: If item not found
             StorageError: If get operation fails
         """
         try:
             response = self.table.get_item(Key={"PK": pk, "SK": sk})
-            return response.get("Item")
+            item = response.get("Item")
+            if not item:
+                raise DocumentNotFoundError(
+                    document_id=sk,  # SK is PDF#<docId>
+                    message=f"Document with PK {pk} and SK {sk} not found",
+                )
+            return item
+        except DocumentNotFoundError:
+            raise
+        except ClientError as e:
+            raise StorageError(
+                f"Failed to get item from DynamoDB",
+                code="get_item_failed",
+                details={"error": str(e)},
+            )
         except Exception as e:
             raise StorageError(
                 f"Failed to get item from DynamoDB",
                 code="get_item_failed",
-                details={"e": str(e)},
+                details={"error": str(e)},
             )
 
-    async def query_items(
-        self, pk: str, sk_prefix: Optional[str] = None, limit: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
-        """Query items from DynamoDB.
-
-        Args:
-            pk: Partition key
-            sk_prefix: Sort key prefix to filter by
-            limit: Maximum number of items to return
-
-        Returns:
-            List of items
-
-        Raises:
-            StorageError: If query operation fails
-        """
+    def query_by_pk(self, pk: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Query items by partition key only."""
         try:
-            key_condition = Key("PK").eq(pk)
-            if sk_prefix:
-                key_condition = key_condition & Key("SK").begins_with(sk_prefix)
-
-            query_params = {"KeyConditionExpression": key_condition}
+            query_params = {"KeyConditionExpression": Key("PK").eq(pk)}
             if limit:
                 query_params["Limit"] = limit
-
             response = self.table.query(**query_params)
             return response.get("Items", [])
+        except ClientError as e:
+            raise StorageError(
+                f"Failed to query items from DynamoDB",
+                code="query_items_failed",
+                details={"error": str(e)},
+            )
         except Exception as e:
             raise StorageError(
                 f"Failed to query items from DynamoDB",
                 code="query_items_failed",
-                details={"e": str(e)},
+                details={"error": str(e)},
             )
 
-    async def update_item(
+    def query_by_pk_and_sk_prefix(
+        self, pk: str, sk_prefix: str, limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Query items by partition key and sort key prefix."""
+        try:
+            key_condition = Key("PK").eq(pk) & Key("SK").begins_with(sk_prefix)
+            query_params = {"KeyConditionExpression": key_condition}
+            if limit:
+                query_params["Limit"] = limit
+            response = self.table.query(**query_params)
+            return response.get("Items", [])
+        except ClientError as e:
+            raise StorageError(
+                f"Failed to query items from DynamoDB",
+                code="query_items_failed",
+                details={"error": str(e)},
+            )
+        except Exception as e:
+            raise StorageError(
+                f"Failed to query items from DynamoDB",
+                code="query_items_failed",
+                details={"error": str(e)},
+            )
+
+    def update_item(
         self,
         pk: str,
         sk: str,
@@ -149,11 +176,63 @@ class DynamoDBClient:
                 ExpressionAttributeValues=expression_values,
                 ConditionExpression="attribute_exists(PK)",
             )
-        except self.dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
-            raise DocumentNotFoundError(f"Document with PK {pk} and SK {sk} not found")
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code == "ConditionalCheckFailedException":
+                raise DocumentNotFoundError(
+                    document_id=sk,
+                    message=f"Document with PK {pk} and SK {sk} not found",
+                )
+            raise StorageError(
+                f"Failed to update item in DynamoDB",
+                code="update_item_failed",
+                details={"error": str(e)},
+            )
         except Exception as e:
             raise StorageError(
                 f"Failed to update item in DynamoDB",
                 code="update_item_failed",
-                details={"e": str(e)},
+                details={"error": str(e)},
+            )
+
+    def update_item_fields(self, pk: str, sk: str, updates: Dict[str, Any]) -> None:
+        """Update fields in an item in DynamoDB.
+
+        Args:
+            pk: Partition key
+            sk: Sort key
+            updates: Dict of fields to update
+
+        Raises:
+            DocumentNotFoundError: If item not found
+            StorageError: If update operation fails
+        """
+        if not updates:
+            return
+        update_expr = "SET " + ", ".join(f"{k} = :{k}" for k in updates)
+        expr_values = {f":{k}": v for k, v in updates.items()}
+        try:
+            self.table.update_item(
+                Key={"PK": pk, "SK": sk},
+                UpdateExpression=update_expr,
+                ExpressionAttributeValues=expr_values,
+                ConditionExpression="attribute_exists(PK)",
+            )
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code == "ConditionalCheckFailedException":
+                raise DocumentNotFoundError(
+                    document_id=sk,
+                    message=f"Document with PK {pk} and SK {sk} not found",
+                )
+            raise StorageError(
+                f"Failed to update item in DynamoDB",
+                code="update_item_failed",
+                details={"error": str(e)},
+            )
+        except Exception as e:
+            raise StorageError(
+                f"Failed to update item in DynamoDB",
+                code="update_item_failed",
+                details={"error": str(e)},
             )

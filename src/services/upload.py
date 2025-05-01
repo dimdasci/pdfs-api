@@ -3,7 +3,7 @@
 from typing import Tuple
 from uuid import uuid4
 
-import aiohttp
+import requests
 
 from ..clients.dynamodb import DynamoDBClient
 from ..clients.s3 import S3Client
@@ -45,7 +45,7 @@ class UploadService:
         key = f"{user_id}/{document_id}/original.pdf"
         return document_id, key
 
-    async def upload_from_file(
+    def upload_from_file(
         self, user_id: str, document_name: str, file_content: bytes
     ) -> str:
         """Upload a document from file content.
@@ -61,13 +61,13 @@ class UploadService:
 
         Raises:
             StorageError: If S3 upload or DynamoDB write fails
-            DocumentAlreadyExistsError: If the document record already exists (should be rare)
+            DocumentAlreadyExistsError: If the document record already exists
         """
         document_id, key = self.generate_document_id_key(user_id)
 
         try:
             # 1. Upload to S3 first
-            await self.s3_client.upload_file(key, file_content)
+            self.s3_client.upload_file(key, file_content)
 
             # 2. If S3 upload succeeds, create and save DynamoDB record
             try:
@@ -80,7 +80,7 @@ class UploadService:
                     status=ProcessingStatus.PROCESSING,
                 )
                 record = DocumentRecord.from_domain(document)
-                await self.dynamodb_client.put_item(record.to_dynamo())
+                self.dynamodb_client.put_item(record.to_dynamo())
 
                 return document_id
             except DocumentAlreadyExistsError as db_exc:
@@ -106,7 +106,7 @@ class UploadService:
                 details={"s3_exc": str(s3_exc)},
             )
 
-    async def upload_from_url(self, user_id: str, document_name: str, url: str) -> str:
+    def upload_from_url(self, user_id: str, document_name: str, url: str) -> str:
         """Upload a document from a URL.
         Downloads from URL, saves to S3 first, then creates the DynamoDB record.
 
@@ -125,19 +125,18 @@ class UploadService:
         document_id, key = self.generate_document_id_key(user_id)
 
         try:
-            # 1. Download from URL
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
-                    if response.status != 200:
-                        raise StorageError(
-                            f"Failed to download PDF from URL ({url}): {response.status}",
-                            code="url_download_failed",
-                            details={"status": str(response)},
-                        )
-                    content = await response.read()
+            # 1. Download from URL using requests instead of aiohttp
+            response = requests.get(url)
+            if response.status_code != 200:
+                raise StorageError(
+                    f"Failed to download PDF from URL ({url}): {response.status_code}",
+                    code="url_download_failed",
+                    details={"status": str(response)},
+                )
+            content = response.content
 
             # 2. Upload downloaded content to S3
-            await self.s3_client.upload_file(key, content)
+            self.s3_client.upload_file(key, content)
 
             # 3. If S3 upload succeeds, create and save DynamoDB record
             try:
@@ -150,7 +149,7 @@ class UploadService:
                     status=ProcessingStatus.PROCESSING,
                 )
                 record = DocumentRecord.from_domain(document)
-                await self.dynamodb_client.put_item(record.to_dynamo())
+                self.dynamodb_client.put_item(record.to_dynamo())
 
                 return document_id
             except DocumentAlreadyExistsError as db_exc:
@@ -170,9 +169,7 @@ class UploadService:
                 details={"upload_exc": str(upload_exc)},
             )
 
-    async def get_upload_status(
-        self, user_id: str, document_id: str
-    ) -> ProcessingStatus:
+    def get_upload_status(self, user_id: str, document_id: str) -> ProcessingStatus:
         """Get the status of an upload.
 
         Args:
@@ -188,7 +185,7 @@ class UploadService:
         """
         try:
             # Get document record
-            record_dict = await self.dynamodb_client.get_item(
+            record_dict = self.dynamodb_client.get_item(
                 pk=f"USER#{user_id}", sk=f"PDF#{document_id}"
             )
             if not record_dict:
