@@ -1,17 +1,17 @@
 {
     "version": "2.0",
-    "routeKey": "GET /documents",
+    "routeKey": "POST /documents",
     "rawPath": "/documents",
     "rawQueryString": "",
     "headers": {
-        "accept": "application/json",
-        "content-length": "0",
+        "accept": "multipart/form-data",
+        "content-type": "multipart/form-data",
         "host": "localhost:3000",
         "user-agent": "curl/7.64.1",
         "x-forwarded-proto": "http",
         "x-forwarded-port": "3000",
         "x-forwarded-for": "127.0.0.1",
-        "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzNjIyNzdiMTM4MTVkYzA0NzNmODBiYmM0NTU3YjUyMjBjMGUwNzAwMWYzYTZjNjk4MzhmNTkyMDc1ZjJmOGIzIiwiZW1haWwiOiJkbWl0cmlpQGZhc3RtYWlsLmNvbSIsImV4cCI6MTc0NjA2Mzk1OCwiaWF0IjoxNzQ2MDM1MTU4LCJqdGkiOiJiZGZhMjkzYS04ZWMwLTRjMGUtODA0YS0wMmQyYjc4ZTJiZGIifQ.5Jk_OhAvN1ZCZROVZWvIM18OJX2z7nKfsNhYmS8fjXg"
+        "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzNjIyNzdiMTM4MTVkYzA0NzNmODBiYmM0NTU3YjUyMjBjMGUwNzAwMWYzYTZjNjk4MzhmNTkyMDc1ZjJmOGIzIiwiZW1haWwiOiJkbWl0cmlpQGZhc3RtYWlsLmNvbSIsImV4cCI6MTc0NzE3NzkyNCwiaWF0IjoxNzQ3MTQ5MTI0LCJqdGkiOiJkNTM3ZmFiMy03ODVhLTQ1NzEtYjM3My01M2MyZTU0NDVlYjAifQ.mON9CRY_M7bwlJLPq88FOx6Sfb7P2ll4t_XWnVRQTsA"
     },
     "requestContext": {
         "accountId": "123456789012",
@@ -19,14 +19,14 @@
         "domainName": "localhost:3000",
         "domainPrefix": "localhost",
         "http": {
-            "method": "GET",
+            "method": "POST",
             "path": "/documents",
             "protocol": "HTTP/1.1",
             "sourceIp": "127.0.0.1",
             "userAgent": "curl/7.64.1"
         },
         "requestId": "id",
-        "routeKey": "GET /documents",
+        "routeKey": "POST /documents",
         "stage": "$default",
         "time": "24/Apr/2025:14:21:18 +0000",
         "timeEpoch": 1745504478251,
@@ -38,5 +38,6 @@
             }
         }
     },
+    "body": "{\"documentName\":\"thesis.pdf\",\"url\":\"https://cs.siu.edu/files/thesis.pdf\"}",
     "isBase64Encoded": false
 } 

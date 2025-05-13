@@ -8,7 +8,7 @@ Description: >
 Globals:
   Function:
     Timeout: 30
-    MemorySize: 128
+    MemorySize: 512
     Architectures:
       - arm64
     Tags:
@@ -165,9 +165,9 @@ Resources:
             BucketName: "dimosaic-pdf-analyser-svhy308sv6"
         - DynamoDBReadPolicy:
             TableName: "dimosaic-app-prod"
-        # Add DynamoDBWritePolicy if/when needed for upload/status updates
-        # - DynamoDBWritePolicy:
-        #     TableName: "dimosaic-app-prod"
+        # DynamoDBWritePolicy
+        - DynamoDBWritePolicy:
+            TableName: "dimosaic-app-prod"
     Metadata:
       Dockerfile: Dockerfile
       DockerContext: .

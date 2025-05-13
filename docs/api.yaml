@@ -36,10 +36,19 @@ components:
           schema:
             type: object
             properties:
+              documentName:
+                type: string
+                description: The desired name for the uploaded document.
               file:
                 type: string
                 format: binary
-            required: [file]
+                description: The PDF file to upload.
+              url:
+                type: string
+                format: uri
+                description: The URL of the PDF file to fetch and process.
+            required: [documentName]
+            description: Requires 'documentName' and *either* 'file' or 'url' to be provided.
   schemas:
     UploadResponse:
       type: object

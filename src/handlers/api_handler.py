@@ -1,12 +1,19 @@
-from datetime import datetime
+import functools  # Import functools for partial
+from datetime import datetime, timezone
 from typing import List
 
 from aws_lambda_powertools.event_handler import APIGatewayHttpResolver, CORSConfig
 from aws_lambda_powertools.logging import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
+from src.clients.dynamodb import DynamoDBClient
+from src.clients.s3 import S3Client
 from src.config.app import AppConfig
-from src.middleware.api import (
+from src.handlers.upload import handle_upload_document  # Import the handler function
+from src.middleware.auth import create_inject_user_context_decorator
+from src.middleware.error_handler import error_handler_middleware
+from src.middleware.logging import logging_middleware
+from src.models.api import (
     DocumentListItem,
     DocumentSummary,
     Layer,
@@ -14,12 +21,9 @@ from src.middleware.api import (
     PageBundle,
     PageDetail,
     PageSize,
-    UploadResponse,
     VersionResponse,
 )
-from src.middleware.auth import create_inject_user_context_decorator
-from src.middleware.error_handler import error_handler_middleware
-from src.middleware.logging import logging_middleware
+from src.models.domain.enums import ProcessingStatus
 
 # --- Constants and Setup ---
 logger = Logger()
@@ -50,6 +54,11 @@ except Exception as e:
     # This error prevents the Lambda from functioning, raise to indicate failure
     raise RuntimeError(f"Initialization error: {e}") from e
 
+# --- Initialize Global Clients (or use DI pattern if preferred) ---
+# Simple instantiation for now
+dynamodb_client = DynamoDBClient(app_config)
+s3_client = S3Client(app_config)
+
 # --- Create User Context Decorator Instance ---
 # Call the factory with the initialized app and logger
 inject_user_context = create_inject_user_context_decorator(app, logger)
@@ -62,23 +71,6 @@ def get_version() -> VersionResponse:
     display_version = f"{app_config.version}-B:{app_config.commit_hash[:7]}-{app_config.app_env[0].upper()}"
     logger.info(f"Version requested: {display_version}")
     return VersionResponse(version=display_version)
-
-
-@app.post("/documents")
-@inject_user_context
-def upload_document() -> UploadResponse:
-    """Handle POST /documents (stub).
-
-    Accepts PDF upload and starts processing.
-    Requires authentication (handled by API Gateway Authorizer).
-    User context is injected by @inject_user_context.
-    """
-    user_id = app.context.get("user_id", "unknown_context_fallback")
-    logger.info("Executing upload_document", extra={"user_id": user_id})
-
-    # TODO: Implement actual upload logic (S3 presigned URL, etc.) using user_id
-    logger.info("Received document upload request (stub)")
-    return UploadResponse(document_id="new-doc-123", status="processing")
 
 
 @app.get("/documents")
@@ -102,16 +94,16 @@ def get_documents() -> List[DocumentListItem]:
         DocumentListItem(
             document_id=f"stub-doc-123-{user_id[:4]}",  # Example usage
             name="example.pdf",
-            status="PROCESSING",
+            status=ProcessingStatus.PROCESSING,
             page_count=10,
-            uploaded=datetime.utcnow(),
+            uploaded=datetime.now(timezone.utc),
         ),
         DocumentListItem(
             document_id=f"stub-doc-456-{user_id[:4]}",  # Example usage
             name="another.pdf",
-            status="COMPLETE",
+            status=ProcessingStatus.COMPLETED,
             page_count=5,
-            uploaded=datetime.utcnow(),
+            uploaded=datetime.now(timezone.utc),
         ),
     ]
 
@@ -144,7 +136,7 @@ def get_document_summary(docId: str) -> DocumentSummary:
 
     return DocumentSummary(
         document_id=docId,
-        status="COMPLETED",
+        status=ProcessingStatus.COMPLETED,
         pages=[
             PageDetail(page=1, width=612.0, height=792.0, layer_count=3),
             PageDetail(page=2, width=612.0, height=792.0, layer_count=2),
@@ -215,6 +207,22 @@ def get_page_bundle(docId: str, page: str) -> PageBundle:
             ),
         ],
     )
+
+
+@app.post("/documents")
+@inject_user_context
+def post_documents_route():
+    """Handle POST /documents request."""
+    # Use functools.partial to pass dependencies to the actual handler
+    bound_handler = functools.partial(
+        handle_upload_document,
+        app=app,  # Pass the app instance for context/event access
+        app_config=app_config,
+        dynamodb_client=dynamodb_client,
+        s3_client=s3_client,
+        logger=logger,
+    )
+    return bound_handler()
 
 
 # --- Main Lambda Entry Point ---
