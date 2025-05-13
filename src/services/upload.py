@@ -14,6 +14,7 @@ from ..middleware.exceptions import (
 )
 from ..models.domain import Document, DocumentSource, ProcessingStatus
 from ..repositories.document import (
+    DocumentRepository,
     generate_document_id,
     generate_document_id_from_content,
     generate_document_id_from_url,
@@ -27,7 +28,7 @@ class UploadService:
     def __init__(
         self,
         config: AppConfig,
-        document_repository: DynamoDBDocumentRepository,
+        document_repository: DocumentRepository,
         s3_client: S3Client,
     ) -> None:
         """Initialize upload service.
