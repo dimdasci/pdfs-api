@@ -1,4 +1,4 @@
-"""Document storage model for DynamoDB."""
+"""Document storage model."""
 
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
@@ -10,9 +10,9 @@ from ..domain.enums import ProcessingStatus
 
 
 class DocumentRecord(BaseModel):
-    """DynamoDB record for a PDF document.
+    """Storage record for a PDF document.
 
-    Maps between domain Document model and DynamoDB storage format.
+    Maps between domain Document model and storage format.
 
     Attributes:
         user_id: ID of the user who owns this document
@@ -39,16 +39,6 @@ class DocumentRecord(BaseModel):
     )
     page_count: int = Field(0, ge=0, description="Number of pages in the document")
 
-    @property
-    def pk(self) -> str:
-        """Get partition key (user_id)."""
-        return f"USER#{self.user_id}"
-
-    @property
-    def sk(self) -> str:
-        """Get sort key (document_id)."""
-        return f"PDF#{self.document_id}"
-
     @classmethod
     def from_domain(cls, document: Document) -> "DocumentRecord":
         """Create DocumentRecord from domain Document.
@@ -71,11 +61,10 @@ class DocumentRecord(BaseModel):
         )
 
     @classmethod
-    def from_dynamo(cls, item: Dict[str, Any]) -> "DocumentRecord":
-        """Create a DocumentRecord instance from a DynamoDB item dictionary.
+    def from_dict(cls, item: Dict[str, Any]) -> "DocumentRecord":
+        """Create a DocumentRecord instance from a dictionary.
 
-        Handles potential minor discrepancies between DB item and model fields if needed.
-        For now, it directly maps known fields.
+        Handles potential minor discrepancies between storage item and model fields if needed.
         """
         # Basic mapping, can add more robust handling (e.g., type conversion if needed)
         return cls(
@@ -90,7 +79,7 @@ class DocumentRecord(BaseModel):
                 item.get("status")
             ),  # Convert string status to enum
             uploaded=item.get(
-                "uploaded"
+                "created_at"
             ),  # Assumes stored as ISO string, Pydantic handles conversion
             page_count=item.get("page_count"),
         )
@@ -115,34 +104,32 @@ class DocumentRecord(BaseModel):
             pages=pages or {},
         )
 
-    def to_dynamo(self) -> Dict[str, Any]:
-        """Convert document record to DynamoDB item.
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert document record to storage dictionary.
 
         Returns:
-            Dictionary with DynamoDB structure
+            Dictionary suitable for storage
         """
         # Create base item with partition and sort keys
         item = {
-            "PK": self.pk,
-            "SK": self.sk,
-            "Type": "Document",
-            "DocumentId": self.document_id,
-            "UserId": self.user_id,
-            "Name": self.name,
-            "Source": self.source.value
+            "type": "DOCUMENT",
+            "user_id": self.user_id,
+            "document_id": self.document_id,
+            "name": self.name,
+            "source": self.source.value
             if hasattr(self.source, "value")
             else str(self.source),
-            "SourceUrl": str(self.source_url) if self.source_url else None,
-            "Status": self.status.value
+            "source_url": str(self.source_url) if self.source_url else None,
+            "status": self.status.value
             if hasattr(self.status, "value")
             else str(self.status),
-            "Uploaded": self.uploaded.isoformat() if self.uploaded else None,
+            "created_at": self.uploaded.isoformat() if self.uploaded else None,
         }
 
         # Add pages if any (as flattened attributes or nested map)
         if hasattr(self, "pages") and self.pages:
             # Simplified approach - store page count
-            item["PageCount"] = len(self.pages)
+            item["page_count"] = len(self.pages)
 
             # For a full implementation, you would serialize pages in a way
             # that fits your access patterns (e.g., separate items or as JSON)
