@@ -23,6 +23,7 @@ from src.models.api import (
     PageSize,
     VersionResponse,
 )
+from src.models.domain.enums import ProcessingStatus
 
 # --- Constants and Setup ---
 logger = Logger()
@@ -93,14 +94,14 @@ def get_documents() -> List[DocumentListItem]:
         DocumentListItem(
             document_id=f"stub-doc-123-{user_id[:4]}",  # Example usage
             name="example.pdf",
-            status="PROCESSING",
+            status=ProcessingStatus.PROCESSING,
             page_count=10,
             uploaded=datetime.now(timezone.utc),
         ),
         DocumentListItem(
             document_id=f"stub-doc-456-{user_id[:4]}",  # Example usage
             name="another.pdf",
-            status="COMPLETE",
+            status=ProcessingStatus.COMPLETED,
             page_count=5,
             uploaded=datetime.now(timezone.utc),
         ),
@@ -135,7 +136,7 @@ def get_document_summary(docId: str) -> DocumentSummary:
 
     return DocumentSummary(
         document_id=docId,
-        status="COMPLETED",
+        status=ProcessingStatus.COMPLETED,
         pages=[
             PageDetail(page=1, width=612.0, height=792.0, layer_count=3),
             PageDetail(page=2, width=612.0, height=792.0, layer_count=2),
