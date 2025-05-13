@@ -147,7 +147,7 @@ def generate_document_id_from_url(url: str) -> str:
         A document ID based on URL hash
     """
     # Hash just the URL (no user_id)
-    content = url.encode('utf-8')
+    content = url.encode("utf-8")
     hash_obj = hashlib.sha256(content)
     return f"doc_{hash_obj.hexdigest()[:16]}"
 

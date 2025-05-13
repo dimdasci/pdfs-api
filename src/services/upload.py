@@ -7,13 +7,17 @@ import requests
 from ..clients.s3 import S3Client
 from ..config.app import AppConfig
 from ..middleware.exceptions import (
+    DatabaseWriteError,
     DocumentAlreadyExistsError,
     S3UploadError,
     URLDownloadError,
-    DatabaseWriteError,
 )
 from ..models.domain import Document, DocumentSource, ProcessingStatus
-from ..repositories.document import generate_document_id, generate_document_id_from_content, generate_document_id_from_url
+from ..repositories.document import (
+    generate_document_id,
+    generate_document_id_from_content,
+    generate_document_id_from_url,
+)
 from ..repositories.dynamodb_document import DynamoDBDocumentRepository
 
 
@@ -21,7 +25,10 @@ class UploadService:
     """Service for document upload operations."""
 
     def __init__(
-        self, config: AppConfig, document_repository: DynamoDBDocumentRepository, s3_client: S3Client
+        self,
+        config: AppConfig,
+        document_repository: DynamoDBDocumentRepository,
+        s3_client: S3Client,
     ) -> None:
         """Initialize upload service.
 
@@ -34,7 +41,9 @@ class UploadService:
         self.document_repository = document_repository
         self.s3_client = s3_client
 
-    def generate_document_id_key(self, user_id: str, content: bytes = None, url: str = None) -> Tuple[str, str]:
+    def generate_document_id_key(
+        self, user_id: str, content: bytes = None, url: str = None
+    ) -> Tuple[str, str]:
         """Generate a document ID and key based on content hash or URL.
 
         Args:

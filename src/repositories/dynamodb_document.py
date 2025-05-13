@@ -3,7 +3,7 @@
 from typing import Any, Dict, List, Optional
 
 from ..clients.dynamodb import DynamoDBClient
-from ..middleware.exceptions.storage import StorageGeneralError, DocumentNotFoundError
+from ..middleware.exceptions.storage import DocumentNotFoundError, StorageGeneralError
 from ..models.domain.document import Document
 from ..models.domain.page import Page
 from ..models.storage.document_record import DocumentRecord
@@ -246,5 +246,5 @@ class DynamoDBDocumentRepository:
         except Exception as e:
             raise StorageGeneralError(
                 f"Failed to check document existence: {str(e)}",
-                details={"pk": pk, "sk": sk}
+                details={"pk": pk, "sk": sk},
             )

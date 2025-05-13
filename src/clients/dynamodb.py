@@ -53,8 +53,8 @@ class DynamoDBClient:
         try:
             # Use ConditionExpression to prevent overwrites - check both PK and SK
             self.table.put_item(
-                Item=item, 
-                ConditionExpression="attribute_not_exists(PK) AND attribute_not_exists(SK)"
+                Item=item,
+                ConditionExpression="attribute_not_exists(PK) AND attribute_not_exists(SK)",
             )
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "")

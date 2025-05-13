@@ -18,6 +18,7 @@ class StorageError(PDFAnalysisError):
             status_code=500,  # Internal Server Error
         )
 
+
 class StorageGeneralError(StorageError):
     """General error for storage operations."""
 
@@ -28,7 +29,7 @@ class StorageGeneralError(StorageError):
         details: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(message, code, details)
-        
+
 
 class DocumentNotFoundError(StorageError):
     """Error when a document is not found in storage."""
@@ -114,8 +115,12 @@ class DocumentAlreadyExistsError(StorageError):
 class StorageOperationError(StorageError):
     """Raised when a storage operation fails."""
 
-    def __init__(self, message: str = "Storage operation failed", code: str = "STORAGE_OPERATION_FAILED",
-        details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        message: str = "Storage operation failed",
+        code: str = "STORAGE_OPERATION_FAILED",
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Initialize the exception.
 
         Args:
