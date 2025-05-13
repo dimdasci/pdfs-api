@@ -1,4 +1,4 @@
-"""Page bundle storage model for DynamoDB."""
+"""Page bundle storage model."""
 
 from datetime import datetime
 from typing import Any, Dict, List
@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from ..domain.enums import PDFObjectType
 from ..domain.page import Page
+from ..domain.pdf_object import PDFObject  # Move import to top level
 
 
 class LayerInfo(BaseModel):
@@ -45,9 +46,9 @@ class ObjectInfo(BaseModel):
 
 
 class PageBundleRecord(BaseModel):
-    """DynamoDB record for a page bundle.
+    """Storage record for a page bundle.
 
-    Maps between domain Page model and DynamoDB storage format.
+    Maps between domain Page model and storage format.
 
     Attributes:
         user_id: ID of the user who owns this document
@@ -70,16 +71,6 @@ class PageBundleRecord(BaseModel):
     layers: List[LayerInfo] = Field(..., description="List of layer information")
     objects: List[ObjectInfo] = Field(..., description="List of object information")
     processed: datetime = Field(..., description="Processing timestamp")
-
-    @property
-    def pk(self) -> str:
-        """Get partition key (user_id)."""
-        return f"USER#{self.user_id}"
-
-    @property
-    def sk(self) -> str:
-        """Get sort key (document_id + page_number)."""
-        return f"PDF#{self.document_id}#PAGE#{self.page_number}"
 
     @classmethod
     def from_domain(
@@ -125,51 +116,71 @@ class PageBundleRecord(BaseModel):
         Returns:
             Domain Page instance
         """
-        return Page(
+        # Create base page
+        page = Page(
             number=self.page_number,
             width=self.width,
             height=self.height,
-            full_raster_url=self.full_raster_url,
         )
 
-    def to_dynamo(self) -> Dict[str, Any]:
-        """Convert to DynamoDB item.
+        # Add full_raster_url if it exists in the Page model
+        if hasattr(Page, "full_raster_url"):
+            setattr(page, "full_raster_url", self.full_raster_url)
+
+        # Reconstruct all PDF objects
+        for obj_info in self.objects:
+            pdf_object = PDFObject(
+                id=obj_info.id,
+                type=obj_info.type,
+                bbox=obj_info.bbox,
+                z_index=obj_info.z_index,
+            )
+            page.add_object(pdf_object)
+
+        return page
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to storage dictionary.
 
         Returns:
-            DynamoDB item
+            Dictionary suitable for storage
         """
         return {
-            "PK": self.pk,
-            "SK": self.sk,
-            "Type": "PageBundle",
-            "DocumentId": self.document_id,
-            "PageNumber": self.page_number,
-            "Width": self.width,
-            "Height": self.height,
-            "FullRasterUrl": self.full_raster_url,
-            "Layers": [layer.model_dump() for layer in self.layers],
-            "Objects": [obj.model_dump() for obj in self.objects],
-            "Processed": self.processed.isoformat(),
+            "type": "PageBundle",
+            "user_id": self.user_id,  # Add missing user_id field
+            "document_id": self.document_id,
+            "page_number": self.page_number,
+            "width": self.width,
+            "height": self.height,
+            "full_raster_url": self.full_raster_url,
+            "layers": [layer.model_dump() for layer in self.layers],
+            "objects": [obj.model_dump() for obj in self.objects],
+            "created_at": self.processed.isoformat(),
         }
 
     @classmethod
-    def from_dynamo(cls, item: Dict[str, Any]) -> "PageBundleRecord":
-        """Create PageBundleRecord from DynamoDB item.
+    def from_dict(cls, item: Dict[str, Any]) -> "PageBundleRecord":
+        """Create PageBundleRecord from dictionary item.
 
         Args:
-            item: DynamoDB item
+            item: Storage dictionary representation
 
         Returns:
             PageBundleRecord instance
         """
+        # Fix ISO date parsing by handling 'Z' timezone indicator
+        created_at = item.get("created_at") or "2000-01-01T00:00:00"
+        if created_at.endswith("Z"):
+            created_at = created_at[:-1] + "+00:00"  # Replace Z with +00:00
+
         return cls(
-            user_id=item.get("UserId"),
-            document_id=item.get("DocumentId"),
-            page_number=item.get("PageNumber"),
-            width=item.get("Width"),
-            height=item.get("Height"),
-            full_raster_url=item.get("FullRasterUrl"),
-            layers=[LayerInfo(**layer) for layer in item.get("Layers", [])],
-            objects=[ObjectInfo(**obj) for obj in item.get("Objects", [])],
-            processed=datetime.fromisoformat(item.get("Processed")),
+            user_id=item.get("user_id"),
+            document_id=item.get("document_id"),
+            page_number=item.get("page_number"),
+            width=item.get("width"),
+            height=item.get("height"),
+            full_raster_url=item.get("full_raster_url"),
+            layers=[LayerInfo(**layer) for layer in item.get("layers", [])],
+            objects=[ObjectInfo(**obj) for obj in item.get("objects", [])],
+            processed=datetime.fromisoformat(created_at),
         )
