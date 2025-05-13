@@ -4,7 +4,6 @@ from typing import Dict, List
 
 from pydantic import BaseModel, Field
 
-from .enums import PDFObjectType
 from .layer import Layer
 from .pdf_object import PDFObject
 

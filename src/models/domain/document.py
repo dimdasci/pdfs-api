@@ -87,18 +87,3 @@ class Document(BaseModel):
     def get_page(self, number: int) -> Optional[Page]:
         """Get page by number."""
         return self.pages.get(number)
-
-    @property
-    def is_processing_complete(self) -> bool:
-        """Check if document processing is complete."""
-        return self.status in (ProcessingStatus.COMPLETED, ProcessingStatus.FAILED)
-
-    @property
-    def dynamo_pk(self) -> str:
-        """Get DynamoDB partition key."""
-        return f"USER#{self.user_id}"
-
-    @property
-    def dynamo_sk(self) -> str:
-        """Get DynamoDB sort key."""
-        return f"PDF#{self.id}"

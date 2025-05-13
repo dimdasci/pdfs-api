@@ -51,15 +51,16 @@ class DynamoDBClient:
         )
 
         try:
-            # Use ConditionExpression to prevent overwrites
+            # Use ConditionExpression to prevent overwrites - check both PK and SK
             self.table.put_item(
-                Item=item, ConditionExpression="attribute_not_exists(PK)"
+                Item=item, 
+                ConditionExpression="attribute_not_exists(PK) AND attribute_not_exists(SK)"
             )
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "")
             if error_code == "ConditionalCheckFailedException":
                 raise DocumentAlreadyExistsError(
-                    f"Document with PK {item['PK']} and SK {item['SK']} already exists"
+                    f"Document with PK {item.get('PK')} and SK {item.get('SK')} already exists"
                 )
             raise StorageError(
                 f"Failed to put item in DynamoDB",
@@ -174,7 +175,7 @@ class DynamoDBClient:
                 Key={"PK": pk, "SK": sk},
                 UpdateExpression=update_expression,
                 ExpressionAttributeValues=expression_values,
-                ConditionExpression="attribute_exists(PK)",
+                ConditionExpression="attribute_exists(PK) AND attribute_exists(SK)",
             )
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "")
@@ -216,7 +217,7 @@ class DynamoDBClient:
                 Key={"PK": pk, "SK": sk},
                 UpdateExpression=update_expr,
                 ExpressionAttributeValues=expr_values,
-                ConditionExpression="attribute_exists(PK)",
+                ConditionExpression="attribute_exists(PK) AND attribute_exists(SK)",
             )
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "")

@@ -12,6 +12,7 @@ from ..clients.s3 import S3Client
 from ..config.app import AppConfig
 from ..middleware.api import UploadResponse
 from ..models.domain import ProcessingStatus
+from ..repositories.dynamodb_document import DynamoDBDocumentRepository
 from ..services.auth import AuthenticationService
 from ..services.request_parser import RequestParsingService
 from ..services.upload import UploadService
@@ -48,7 +49,8 @@ def handle_upload_document(
     # Initialize services
     auth_service = AuthenticationService(app, logger)
     parser_service = RequestParsingService(app, logger)
-    upload_service = UploadService(app_config, dynamodb_client, s3_client)
+    document_repository = DynamoDBDocumentRepository(dynamodb_client)
+    upload_service = UploadService(app_config, document_repository, s3_client)
 
     # 1. Authentication check - will raise UnauthorizedError if missing
     user_id = auth_service.get_authenticated_user_id()
