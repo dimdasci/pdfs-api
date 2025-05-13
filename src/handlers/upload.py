@@ -43,7 +43,7 @@ def handle_upload_document(
     Raises:
         BadRequestError: If request validation fails
         UnauthorizedError: If user authentication context is missing
-        StorageError: If storage operations fail
+        StorageGeneralError: If storage operations fail
         DocumentAlreadyExistsError: If document ID already exists
     """
     # Initialize services

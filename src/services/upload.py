@@ -6,9 +6,14 @@ import requests
 
 from ..clients.s3 import S3Client
 from ..config.app import AppConfig
-from ..middleware.exceptions import DocumentAlreadyExistsError, StorageError
+from ..middleware.exceptions import (
+    DocumentAlreadyExistsError,
+    S3UploadError,
+    URLDownloadError,
+    DatabaseWriteError,
+)
 from ..models.domain import Document, DocumentSource, ProcessingStatus
-from ..repositories.document import generate_document_id
+from ..repositories.document import generate_document_id, generate_document_id_from_content, generate_document_id_from_url
 from ..repositories.dynamodb_document import DynamoDBDocumentRepository
 
 
@@ -29,14 +34,25 @@ class UploadService:
         self.document_repository = document_repository
         self.s3_client = s3_client
 
-    def generate_document_id_key(self, user_id: str) -> Tuple[str, str]:
-        """Generate a unique document ID and key.
+    def generate_document_id_key(self, user_id: str, content: bytes = None, url: str = None) -> Tuple[str, str]:
+        """Generate a document ID and key based on content hash or URL.
+
+        Args:
+            user_id: ID of the user uploading the document
+            content: Optional file content bytes
+            url: Optional source URL
 
         Returns:
             Document ID
             Key
         """
-        document_id = generate_document_id()
+        if content is not None:
+            document_id = generate_document_id_from_content(content)
+        elif url is not None:
+            document_id = generate_document_id_from_url(url)
+        else:
+            document_id = generate_document_id()
+
         key = f"{user_id}/{document_id}/original.pdf"
         return document_id, key
 
@@ -55,10 +71,18 @@ class UploadService:
             Document ID
 
         Raises:
-            StorageError: If S3 upload or database write fails
-            DocumentAlreadyExistsError: If the document record already exists
+            DocumentAlreadyExistsError: If the document already exists
+            S3UploadError: If S3 upload fails
+            DatabaseWriteError: If database write fails
         """
-        document_id, key = self.generate_document_id_key(user_id)
+        document_id, key = self.generate_document_id_key(user_id, content=file_content)
+
+        # Check if document already exists before uploading
+        if self.document_repository.document_exists(user_id, document_id):
+            raise DocumentAlreadyExistsError(
+                f"Document already exists with ID {document_id}",
+                details={"document_id": document_id},
+            )
 
         try:
             # 1. Upload to S3 first
@@ -78,25 +102,17 @@ class UploadService:
                 return document_id
 
             except DocumentAlreadyExistsError as db_exc:
-                # Handle the unlikely case where the generated ID collides
-                # and the record already exists after S3 upload succeeded.
-                # Consider logging this and potentially trying to delete the orphaned S3 object.
-                # For now, re-raise the specific error.
+                # Handle the case where the generated ID from content already exists
                 raise db_exc
             except Exception as db_exc:
-                # Handle generic database errors after successful S3 upload
-                # Log, potentially try to delete orphaned S3 object
-                raise StorageError(
+                raise DatabaseWriteError(
                     f"Database write failed after successful S3 upload for {key}",
-                    code="database_write_failed",
                     details={"db_exc": str(db_exc)},
                 )
 
         except Exception as s3_exc:
-            # Handle S3 upload errors
-            raise StorageError(
+            raise S3UploadError(
                 f"Failed to upload document to S3 ({key})",
-                code="s3_upload_failed",
                 details={"s3_exc": str(s3_exc)},
             )
 
@@ -113,18 +129,27 @@ class UploadService:
             Document ID
 
         Raises:
-            StorageError: If download, S3 upload, or database write fails
-            DocumentAlreadyExistsError: If the document record already exists
+            DocumentAlreadyExistsError: If the document already exists
+            URLDownloadError: If URL download fails
+            S3UploadError: If S3 upload fails
+            DatabaseWriteError: If database write fails
         """
-        document_id, key = self.generate_document_id_key(user_id)
+        # First generate the ID from the URL before downloading content
+        document_id, key = self.generate_document_id_key(user_id, url=url)
+
+        # Check if document already exists before downloading and uploading
+        if self.document_repository.document_exists(user_id, document_id):
+            raise DocumentAlreadyExistsError(
+                f"Document already exists with ID {document_id}",
+                details={"document_id": document_id},
+            )
 
         try:
-            # 1. Download from URL using requests instead of aiohttp
+            # 1. Download from URL
             response = requests.get(url)
             if response.status_code != 200:
-                raise StorageError(
+                raise URLDownloadError(
                     f"Failed to download PDF from URL ({url}): {response.status_code}",
-                    code="url_download_failed",
                     details={"status": str(response)},
                 )
             content = response.content
@@ -142,23 +167,19 @@ class UploadService:
                     source_url=url,
                     status=ProcessingStatus.PROCESSING,
                 )
-                # Use the same method as upload_from_file for consistency
                 self.document_repository.save_document(document)
                 return document_id
 
             except DocumentAlreadyExistsError as db_exc:
-                raise db_exc  # Re-raise specific error
+                raise db_exc
             except Exception as db_exc:
-                raise StorageError(
+                raise DatabaseWriteError(
                     f"Database write failed after successful S3 upload for {key}",
-                    code="database_write_failed",
                     details={"db_exc": str(db_exc)},
                 )
 
         except Exception as upload_exc:
-            # Handle download or S3 errors
-            raise StorageError(
+            raise S3UploadError(
                 f"Failed to process document from URL ({url})",
-                code="upload_failed",
                 details={"upload_exc": str(upload_exc)},
             )

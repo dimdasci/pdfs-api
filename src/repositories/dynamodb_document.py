@@ -3,7 +3,7 @@
 from typing import Any, Dict, List, Optional
 
 from ..clients.dynamodb import DynamoDBClient
-from ..middleware.exceptions.storage import DocumentNotFoundError, StorageError
+from ..middleware.exceptions.storage import StorageGeneralError, DocumentNotFoundError
 from ..models.domain.document import Document
 from ..models.domain.page import Page
 from ..models.storage.document_record import DocumentRecord
@@ -65,7 +65,7 @@ class DynamoDBDocumentRepository:
             document: The Document domain object to save
 
         Raises:
-            StorageError: If DynamoDB operations fail
+            StorageGeneralError: If DynamoDB operations fail
         """
         pk = self.document_pk(document.user_id)
         sk = self.document_sk(document.id)
@@ -90,7 +90,7 @@ class DynamoDBDocumentRepository:
 
         Raises:
             DocumentNotFoundError: If the document is not found
-            StorageError: If DynamoDB operations fail
+            StorageGeneralError: If DynamoDB operations fail
         """
         pk = self.document_pk(user_id)
         sk = self.document_sk(document_id)
@@ -112,7 +112,7 @@ class DynamoDBDocumentRepository:
             List of Document domain objects
 
         Raises:
-            StorageError: If DynamoDB operations fail
+            StorageGeneralError: If DynamoDB operations fail
         """
         pk = self.document_pk(user_id)
         items = self.dynamodb_client.query_by_pk(pk=pk, limit=limit)
@@ -133,7 +133,7 @@ class DynamoDBDocumentRepository:
 
         Raises:
             DocumentNotFoundError: If the document is not found
-            StorageError: If DynamoDB operations fail
+            StorageGeneralError: If DynamoDB operations fail
         """
         pk = self.document_pk(user_id)
         sk = self.document_sk(document_id)
@@ -148,7 +148,7 @@ class DynamoDBDocumentRepository:
             document_id: The document identifier
 
         Raises:
-            StorageError: If DynamoDB operations fail
+            StorageGeneralError: If DynamoDB operations fail
         """
         pk = self.document_pk(user_id)
         sk = self.page_bundle_sk(document_id, page.number)
@@ -173,7 +173,7 @@ class DynamoDBDocumentRepository:
 
         Raises:
             DocumentNotFoundError: If the page is not found
-            StorageError: If DynamoDB operations fail
+            StorageGeneralError: If DynamoDB operations fail
         """
         pk = self.document_pk(user_id)
         sk = self.page_bundle_sk(document_id, page_number)
@@ -193,7 +193,7 @@ class DynamoDBDocumentRepository:
             List of PageBundleRecord objects
 
         Raises:
-            StorageError: If DynamoDB operations fail
+            StorageGeneralError: If DynamoDB operations fail
         """
         pk = self.document_pk(user_id)
         sk_prefix = f"PDF#{document_id}#PAGE#"
@@ -213,7 +213,7 @@ class DynamoDBDocumentRepository:
             List of Page objects
 
         Raises:
-            StorageError: If DynamoDB operations fail
+            StorageGeneralError: If DynamoDB operations fail
         """
         pk = self.document_pk(user_id)
         sk_prefix = f"PDF#{document_id}#PAGE#"
@@ -221,3 +221,30 @@ class DynamoDBDocumentRepository:
             pk=pk, sk_prefix=sk_prefix
         )
         return [PageBundleRecord.from_dict(item).to_domain() for item in items]
+
+    def document_exists(self, user_id: str, document_id: str) -> bool:
+        """Check if a document already exists.
+
+        Args:
+            user_id: The user who owns the document
+            document_id: The document identifier
+
+        Returns:
+            True if document exists, False otherwise
+
+        Raises:
+            StorageGeneralError: If DynamoDB operations fail
+        """
+        pk = self.document_pk(user_id)
+        sk = self.document_sk(document_id)
+        try:
+            item = self.dynamodb_client.get_item(pk=pk, sk=sk)
+            return item is not None and len(item) > 0
+        except DocumentNotFoundError:
+            # Return False if the document is not found
+            return False
+        except Exception as e:
+            raise StorageGeneralError(
+                f"Failed to check document existence: {str(e)}",
+                details={"pk": pk, "sk": sk}
+            )

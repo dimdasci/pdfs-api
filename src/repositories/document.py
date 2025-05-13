@@ -1,5 +1,6 @@
 """Repository interfaces for document data access operations."""
 
+import hashlib
 import uuid
 from typing import Any, Dict, List, Optional, Protocol
 
@@ -18,7 +19,7 @@ class DocumentRepository(Protocol):
             document: The Document domain object to save.
         Raises:
             DocumentAlreadyExistsError: If the document already exists.
-            StorageError: If the save operation fails.
+            StorageGeneralError: If the save operation fails.
         """
         ...
 
@@ -32,7 +33,7 @@ class DocumentRepository(Protocol):
             The Document domain object.
         Raises:
             DocumentNotFoundError: If the document is not found.
-            StorageError: If the retrieval fails.
+            StorageGeneralError: If the retrieval fails.
         """
         ...
 
@@ -48,7 +49,7 @@ class DocumentRepository(Protocol):
         Returns:
             List of Document domain objects.
         Raises:
-            StorageError: If the list operation fails.
+            StorageGeneralError: If the list operation fails.
         """
         ...
 
@@ -63,7 +64,7 @@ class DocumentRepository(Protocol):
             updates: Dictionary of fields to update.
         Raises:
             DocumentNotFoundError: If the document is not found.
-            StorageError: If the update operation fails.
+            StorageGeneralError: If the update operation fails.
         """
         ...
 
@@ -75,7 +76,7 @@ class DocumentRepository(Protocol):
             user_id: The user who owns the document.
             document_id: The document identifier.
         Raises:
-            StorageError: If the save operation fails.
+            StorageGeneralError: If the save operation fails.
         """
         ...
 
@@ -90,7 +91,7 @@ class DocumentRepository(Protocol):
             The Page object.
         Raises:
             DocumentNotFoundError: If the page is not found.
-            StorageError: If the retrieval fails.
+            StorageGeneralError: If the retrieval fails.
         """
         ...
 
@@ -105,7 +106,7 @@ class DocumentRepository(Protocol):
         Returns:
             List of PageBundleRecord objects.
         Raises:
-            StorageError: If the list operation fails.
+            StorageGeneralError: If the list operation fails.
         """
         ...
 
@@ -118,9 +119,37 @@ class DocumentRepository(Protocol):
         Returns:
             List of Page objects.
         Raises:
-            StorageError: If the list operation fails.
+            StorageGeneralError: If the list operation fails.
         """
         ...
+
+
+def generate_document_id_from_content(content: bytes) -> str:
+    """Generate a document ID based on content hash.
+
+    Args:
+        content: The binary content to hash
+
+    Returns:
+        A document ID based on content hash
+    """
+    hash_obj = hashlib.sha256(content)
+    return f"doc_{hash_obj.hexdigest()[:16]}"
+
+
+def generate_document_id_from_url(url: str) -> str:
+    """Generate a document ID based on URL.
+
+    Args:
+        url: The URL to hash
+
+    Returns:
+        A document ID based on URL hash
+    """
+    # Hash just the URL (no user_id)
+    content = url.encode('utf-8')
+    hash_obj = hashlib.sha256(content)
+    return f"doc_{hash_obj.hexdigest()[:16]}"
 
 
 def generate_document_id() -> str:
