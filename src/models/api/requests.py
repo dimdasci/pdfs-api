@@ -46,21 +46,9 @@ class ListDocumentsRequest(BaseModel):
     )
 
 
-class UploadResponse(BaseModel):
-    """Response model for document upload.
-
-    Attributes:
-        document_id: Unique ID of the uploaded document.
-        status: Current processing status of the document.
-    """
-
-    document_id: str = Field(..., description="Unique document identifier")
-    status: str = Field(..., description="Processing status")
-
-
 # Pydantic Model for Multipart Form Data used in upload handler
 class UploadForm(BaseModel):
-    """Model representing the expected fields in a multipart/form-data upload request."""
+    """Model representing the expected fields in a multipart/form/data upload request."""
 
     documentName: str = Field(..., description="User-provided name for the document")
     file: Optional[FileContent] = Field(None, description="Optional PDF file upload")

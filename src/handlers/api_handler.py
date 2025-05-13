@@ -10,7 +10,10 @@ from src.clients.dynamodb import DynamoDBClient
 from src.clients.s3 import S3Client
 from src.config.app import AppConfig
 from src.handlers.upload import handle_upload_document  # Import the handler function
-from src.middleware.api import (
+from src.middleware.auth import create_inject_user_context_decorator
+from src.middleware.error_handler import error_handler_middleware
+from src.middleware.logging import logging_middleware
+from src.models.api import (
     DocumentListItem,
     DocumentSummary,
     Layer,
@@ -20,9 +23,6 @@ from src.middleware.api import (
     PageSize,
     VersionResponse,
 )
-from src.middleware.auth import create_inject_user_context_decorator
-from src.middleware.error_handler import error_handler_middleware
-from src.middleware.logging import logging_middleware
 
 # --- Constants and Setup ---
 logger = Logger()

@@ -6,7 +6,8 @@ from aws_lambda_powertools.logging import Logger
 from aws_lambda_powertools.middleware_factory import lambda_handler_decorator
 from pydantic import BaseModel, ValidationError
 
-from .api import APIErrorResponse
+from src.models.api import APIErrorResponse
+
 from .exceptions import (
     BadRequestError,
     DocumentAlreadyExistsError,

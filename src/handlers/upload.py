@@ -10,7 +10,7 @@ from aws_lambda_powertools.logging import Logger
 from ..clients.dynamodb import DynamoDBClient
 from ..clients.s3 import S3Client
 from ..config.app import AppConfig
-from ..middleware.api import UploadResponse
+from ..models.api import UploadResponse
 from ..models.domain import ProcessingStatus
 from ..repositories.dynamodb_document import DynamoDBDocumentRepository
 from ..services.auth import AuthenticationService
