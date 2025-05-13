@@ -23,6 +23,7 @@ class DocumentRecord(BaseModel):
         status: Current processing status
         uploaded: Upload timestamp
         page_count: Number of pages in the document
+        size_in_bytes: Size of the document in bytes
     """
 
     user_id: str = Field(..., description="ID of the user who owns this document")
@@ -38,6 +39,7 @@ class DocumentRecord(BaseModel):
         description="Upload timestamp",
     )
     page_count: int = Field(0, ge=0, description="Number of pages in the document")
+    size_in_bytes: int = Field(0, ge=0, description="Size of the document in bytes")
 
     @classmethod
     def from_domain(cls, document: Document) -> "DocumentRecord":
@@ -58,6 +60,7 @@ class DocumentRecord(BaseModel):
             status=document.status,
             uploaded=document.uploaded,
             page_count=document.page_count,
+            size_in_bytes=document.size_in_bytes,
         )
 
     @classmethod
@@ -82,6 +85,7 @@ class DocumentRecord(BaseModel):
                 "created_at"
             ),  # Assumes stored as ISO string, Pydantic handles conversion
             page_count=item.get("page_count"),
+            size_in_bytes=item.get("size_in_bytes"),
         )
 
     def to_domain(self, pages: Optional[Dict] = None) -> Document:
@@ -102,6 +106,7 @@ class DocumentRecord(BaseModel):
             status=self.status,
             uploaded=self.uploaded,
             pages=pages or {},
+            size_in_bytes=self.size_in_bytes,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -124,6 +129,7 @@ class DocumentRecord(BaseModel):
             if hasattr(self.status, "value")
             else str(self.status),
             "created_at": self.uploaded.isoformat() if self.uploaded else None,
+            "size_in_bytes": self.size_in_bytes,
         }
 
         # Add pages if any (as flattened attributes or nested map)

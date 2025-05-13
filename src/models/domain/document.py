@@ -30,6 +30,7 @@ class Document(BaseModel):
         source_url: Original URL if document was fetched from URL
         status: Current processing status
         uploaded: Upload timestamp
+        size_in_bytes: Size of the document in bytes
         pages: Dictionary of pages by page number
     """
 
@@ -47,6 +48,7 @@ class Document(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc),
         description="Upload timestamp",
     )
+    size_in_bytes: int = Field(default=0, description="Size of the document in bytes")
     pages: Dict[int, Page] = Field(
         default_factory=dict, description="Dictionary of pages by page number"
     )

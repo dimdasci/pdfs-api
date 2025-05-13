@@ -106,6 +106,7 @@ class UploadService:
                     source=DocumentSource.FILE,
                     source_url=None,
                     status=ProcessingStatus.PROCESSING,
+                    size_in_bytes=len(file_content),  # Store document size in bytes
                 )
                 self.document_repository.save_document(document)
                 return document_id
@@ -175,6 +176,7 @@ class UploadService:
                     source=DocumentSource.URL,
                     source_url=url,
                     status=ProcessingStatus.PROCESSING,
+                    size_in_bytes=len(content),  # Store document size in bytes
                 )
                 self.document_repository.save_document(document)
                 return document_id
