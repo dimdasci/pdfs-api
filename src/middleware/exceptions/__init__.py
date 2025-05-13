@@ -34,6 +34,10 @@ from .storage import (
     StorageAccessError,
     StorageError,
     StorageValidationError,
+    StorageGeneralError,
+    S3UploadError,
+    URLDownloadError,
+    DatabaseWriteError,
 )
 
 __all__ = [
@@ -56,4 +60,8 @@ __all__ = [
     "PageNotFoundError",
     "StorageAccessError",
     "StorageValidationError",
+    "StorageGeneralError",
+    "S3UploadError",
+    "URLDownloadError",
+    "DatabaseWriteError",
 ]
