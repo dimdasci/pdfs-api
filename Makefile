@@ -39,3 +39,12 @@ deploy-prod-guided:
 			ParameterKey=StageName,ParameterValue=prod \
 			ParameterKey=CorsAllowedOrigin,ParameterValue=https://dimosaic.dev \
 		--profile dimds
+
+configure-ecr-policy:
+	aws ecr put-lifecycle-policy \
+		--repository-name pdfaapiprod41beddd1/apihandlerfunctionb1de9107repo \
+		--lifecycle-policy-text file://ecr-lifetime-policy.json \
+		--profile dimds \
+		--output yaml
+
+.PHONY: install install-dev tests format build deploy-prod deploy-prod-guided configure-ecr-policy
