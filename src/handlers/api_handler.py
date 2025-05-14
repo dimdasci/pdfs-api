@@ -9,7 +9,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from src.clients.dynamodb import DynamoDBClient
 from src.clients.s3 import S3Client
 from src.config.app import AppConfig
-from src.handlers.upload import handle_upload_document  # Import the handler function
+from src.handlers import handle_get_documents, handle_upload_document
 from src.middleware.auth import create_inject_user_context_decorator
 from src.middleware.error_handler import error_handler_middleware
 from src.middleware.logging import logging_middleware
@@ -76,36 +76,20 @@ def get_version() -> VersionResponse:
 @app.get("/documents")
 @inject_user_context
 def get_documents() -> List[DocumentListItem]:
-    """Handle GET /documents (stub).
+    """Handle GET /documents.
 
-    Returns a list of documents for the user.
+    Returns a list of all documents for the user.
     Requires authentication (handled by API Gateway Authorizer).
     User context is injected by @inject_user_context.
-    Supports filtering and pagination (not implemented in stub).
     """
     user_id = app.context.get("user_id", "unknown_context_fallback")
     logger.info("Executing get_documents", extra={"user_id": user_id})
 
-    # TODO: Implement actual data fetching from DB (filtered by user_id)
-    # TODO: Implement filtering (status) and pagination (limit)
-    logger.info("Received get documents request (stub)")
-    # Example: Add user_id to stub data if needed for demonstration
-    return [
-        DocumentListItem(
-            document_id=f"stub-doc-123-{user_id[:4]}",  # Example usage
-            name="example.pdf",
-            status=ProcessingStatus.PROCESSING,
-            page_count=10,
-            uploaded=datetime.now(timezone.utc),
-        ),
-        DocumentListItem(
-            document_id=f"stub-doc-456-{user_id[:4]}",  # Example usage
-            name="another.pdf",
-            status=ProcessingStatus.COMPLETED,
-            page_count=5,
-            uploaded=datetime.now(timezone.utc),
-        ),
-    ]
+    return handle_get_documents(
+        app=app,  # Pass the app instance for context/event access
+        dynamodb_client=dynamodb_client,
+        logger=logger,
+    )
 
 
 @app.get("/documents/<docId>")

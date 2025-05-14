@@ -31,6 +31,7 @@ class Document(BaseModel):
         status: Current processing status
         uploaded: Upload timestamp
         size_in_bytes: Size of the document in bytes
+        page_count: Total number of pages
         pages: Dictionary of pages by page number
     """
 
@@ -49,14 +50,13 @@ class Document(BaseModel):
         description="Upload timestamp",
     )
     size_in_bytes: int = Field(default=0, description="Size of the document in bytes")
+    page_count: Optional[int] = Field(
+        default=None,
+        description="Total number of pages in the document after processing",
+    )
     pages: Dict[int, Page] = Field(
         default_factory=dict, description="Dictionary of pages by page number"
     )
-
-    @property
-    def page_count(self) -> int:
-        """Get total number of pages."""
-        return len(self.pages)
 
     def update_status(self, new_status: ProcessingStatus) -> None:
         """Update document status if transition is valid.
@@ -85,6 +85,7 @@ class Document(BaseModel):
         if page.number in self.pages:
             raise ValueError(f"Page {page.number} already exists")
         self.pages[page.number] = page
+        self.page_count = len(self.pages)
 
     def get_page(self, number: int) -> Optional[Page]:
         """Get page by number."""

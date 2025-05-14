@@ -43,7 +43,8 @@ class DocumentListItem(BaseModel):
     document_id: str = Field(..., description="Unique document identifier")
     name: str = Field(..., description="Original filename")
     status: ProcessingStatus = Field(..., description="Current processing status")
-    page_count: int = Field(..., ge=0, description="Total number of pages")
+    size_in_bytes: int = Field(..., ge=0, description="File size in bytes")
+    page_count: Optional[int] = Field(None, ge=0, description="Total number of pages")
     uploaded: datetime = Field(..., description="Upload timestamp")
 
 

@@ -38,7 +38,9 @@ class DocumentRecord(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc),
         description="Upload timestamp",
     )
-    page_count: int = Field(0, ge=0, description="Number of pages in the document")
+    page_count: Optional[int] = Field(
+        None, description="Number of pages in the document"
+    )
     size_in_bytes: int = Field(0, ge=0, description="Size of the document in bytes")
 
     @classmethod
@@ -105,6 +107,7 @@ class DocumentRecord(BaseModel):
             source_url=self.source_url,
             status=self.status,
             uploaded=self.uploaded,
+            page_count=self.page_count,
             pages=pages or {},
             size_in_bytes=self.size_in_bytes,
         )
@@ -130,12 +133,12 @@ class DocumentRecord(BaseModel):
             else str(self.status),
             "created_at": self.uploaded.isoformat() if self.uploaded else None,
             "size_in_bytes": self.size_in_bytes,
+            "page_count": self.page_count,
         }
 
         # Add pages if any (as flattened attributes or nested map)
         if hasattr(self, "pages") and self.pages:
-            # Simplified approach - store page count
-            item["page_count"] = len(self.pages)
+            pass
 
             # For a full implementation, you would serialize pages in a way
             # that fits your access patterns (e.g., separate items or as JSON)
