@@ -66,9 +66,10 @@ components:
         status:
           type: string
           enum: [processing, completed, failed]
-        page_count: { type: integer }
+        page_count: { type: integer, nullable: true }
+        size_in_bytes: { type: integer }
         uploaded: { type: string, format: date-time }
-      required: [document_id, name, status, page_count, uploaded]
+      required: [document_id, name, status, size_in_bytes, uploaded]
     DocumentSummary:
       type: object
       properties:
@@ -153,20 +154,6 @@ paths:
     get:
       summary: List all PDFs for the authenticated user.
       security: [{ bearerAuth: [] }]
-      parameters:
-        - name: status
-          in: query
-          description: Filter by processing status.
-          schema:
-            type: string
-            enum: [processing, completed, failed]
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
       responses:
         "200":
           description: Array of documents.

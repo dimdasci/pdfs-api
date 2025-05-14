@@ -1,0 +1,64 @@
+{
+    "level": "INFO",
+    "location": "logging_middleware:30",
+    "message": "Received event",
+    "timestamp": "2025-05-14 14:55:16,568+0000",
+    "service": "auth-api",
+    "event": {
+        "version": "2.0",
+        "routeKey": "GET /documents",
+        "rawPath": "/prod/documents",
+        "rawQueryString": "limit=20",
+        "headers": {
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br",
+            "accept-language": "en-US,en;q=0.9,ru-RU;q=0.8,ru;q=0.7,es;q=0.6",
+            "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzNjIyNzdiMTM4MTVkYzA0NzNmODBiYmM0NTU3YjUyMjBjMGUwNzAwMWYzYTZjNjk4MzhmNTkyMDc1ZjJmOGIzIiwiZW1haWwiOiJkbWl0cmlpQGZhc3RtYWlsLmNvbSIsImV4cCI6MTc0NzI2MzI3NywiaWF0IjoxNzQ3MjM0NDc3LCJqdGkiOiI0YmZkNTJhNy1kMjY0LTQwODQtOTYxOC03M2IzNmRkMTQ5NzcifQ.z1X-SCPPPQRlmbshqrOL4oMrPLMyBGSksoJq1ir0kpU",
+            "content-length": "0",
+            "content-type": "application/json",
+            "host": "pdfa.dimosaic.dev",
+            "origin": "https://dimosaic.dev",
+            "referer": "https://dimosaic.dev/",
+            "sec-ch-ua": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-site",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
+            "x-amzn-trace-id": "Root=1-6824aed4-0ad3ce2135d04be33f32c7e7",
+            "x-forwarded-for": "188.26.209.50",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https"
+        },
+        "queryStringParameters": {
+            "limit": "20"
+        },
+        "requestContext": {
+            "accountId": "992382613803",
+            "apiId": "r1rkn5gtx2",
+            "authorizer": {
+                "lambda": {
+                    "issueTime": "2025-05-14T14:54:37+00:00",
+                    "userId": "362277b13815dc0473f80bbc4557b5220c0e07001f3a6c69838f592075f2f8b3"
+                }
+            },
+            "domainName": "pdfa.dimosaic.dev",
+            "domainPrefix": "pdfa",
+            "http": {
+                "method": "GET",
+                "path": "/prod/documents",
+                "protocol": "HTTP/1.1",
+                "sourceIp": "188.26.209.50",
+                "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+            },
+            "requestId": "KkBBRhh5FiAEPiQ=",
+            "routeKey": "GET /documents",
+            "stage": "prod",
+            "time": "14/May/2025:14:55:16 +0000",
+            "timeEpoch": 1747234516522
+        },
+        "isBase64Encoded": false
+    },
+    "xray_trace_id": "1-6824aed4-20aa18975a279af45f17381a"
+}

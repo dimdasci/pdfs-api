@@ -98,15 +98,11 @@ class DynamoDBDocumentRepository:
         record = DocumentRecord.from_dict(item)
         return record.to_domain()
 
-    def list_documents(
-        self, user_id: str, status: Optional[str] = None, limit: int = 20
-    ) -> List[Document]:
-        """List documents for a user from DynamoDB, optionally filtered by status.
+    def list_documents(self, user_id: str) -> List[Document]:
+        """List all documents for a user from DynamoDB.
 
         Args:
             user_id: The user whose documents to list
-            status: Optional status filter
-            limit: Maximum number of documents to return
 
         Returns:
             List of Document domain objects
@@ -115,11 +111,24 @@ class DynamoDBDocumentRepository:
             StorageGeneralError: If DynamoDB operations fail
         """
         pk = self.document_pk(user_id)
-        items = self.dynamodb_client.query_by_pk(pk=pk, limit=limit)
-        docs = [DocumentRecord.from_dict(item).to_domain() for item in items]
-        if status:
-            docs = [d for d in docs if d.status == status]
-        return docs
+        # Query directly for items with SK starting with "PDF#" (document records)
+        items = self.dynamodb_client.query_by_pk_and_sk_prefix(pk=pk, sk_prefix="PDF#")
+
+        # Additional filter to exclude page records (containing "#PAGE#")
+        document_items = [item for item in items if "#PAGE#" not in item.get("SK", "")]
+
+        # Convert DynamoDB items to domain objects
+        try:
+            docs = [
+                DocumentRecord.from_dict(item).to_domain() for item in document_items
+            ]
+            return docs
+        except Exception as e:
+            # Log the error and re-raise as StorageGeneralError
+            raise StorageGeneralError(
+                f"Failed to convert document records to domain objects: {str(e)}",
+                details={"pk": pk, "error": str(e)},
+            )
 
     def update_document_fields(
         self, user_id: str, document_id: str, updates: Dict[str, Any]

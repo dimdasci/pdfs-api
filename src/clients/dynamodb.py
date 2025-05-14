@@ -106,14 +106,48 @@ class DynamoDBClient:
                 details={"error": str(e)},
             )
 
-    def query_by_pk(self, pk: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Query items by partition key only."""
+    def _paginated_query(
+        self, query_params: Dict[str, Any], limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Execute a paginated DynamoDB query, handling the 1MB response limit.
+
+        This internal helper method handles pagination for all DynamoDB queries,
+        continuing to fetch results until there are no more or until the limit is reached.
+
+        Args:
+            query_params: Dictionary of query parameters to pass to DynamoDB
+            limit: Optional maximum number of items to return
+
+        Returns:
+            List of items matching the query
+
+        Raises:
+            StorageError: If the query operation fails
+        """
         try:
-            query_params = {"KeyConditionExpression": Key("PK").eq(pk)}
-            if limit:
-                query_params["Limit"] = limit
-            response = self.table.query(**query_params)
-            return response.get("Items", [])
+            # Handle pagination to get all results (DynamoDB has 1MB response limit)
+            items = []
+            last_evaluated_key = None
+
+            while True:
+                if last_evaluated_key:
+                    query_params["ExclusiveStartKey"] = last_evaluated_key
+
+                response = self.table.query(**query_params)
+                items.extend(response.get("Items", []))
+
+                # Check if we've reached the specified limit
+                if limit and len(items) >= limit:
+                    items = items[:limit]  # Trim to exact limit
+                    break
+
+                # Check if there are more results to fetch
+                last_evaluated_key = response.get("LastEvaluatedKey")
+                if not last_evaluated_key:
+                    break
+
+            return items
+
         except ClientError as e:
             raise StorageError(
                 f"Failed to query items from DynamoDB",
@@ -127,29 +161,53 @@ class DynamoDBClient:
                 details={"error": str(e)},
             )
 
+    def query_by_pk(self, pk: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Query items by partition key only.
+
+        This method handles DynamoDB pagination to fetch all items, even if they exceed
+        DynamoDB's 1MB response limit.
+
+        Args:
+            pk: Partition key to query
+            limit: Optional maximum number of items to return
+
+        Returns:
+            List of items matching the query
+
+        Raises:
+            StorageError: If the query operation fails
+        """
+        query_params = {"KeyConditionExpression": Key("PK").eq(pk)}
+        if limit:
+            query_params["Limit"] = limit
+
+        return self._paginated_query(query_params, limit)
+
     def query_by_pk_and_sk_prefix(
         self, pk: str, sk_prefix: str, limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        """Query items by partition key and sort key prefix."""
-        try:
-            key_condition = Key("PK").eq(pk) & Key("SK").begins_with(sk_prefix)
-            query_params = {"KeyConditionExpression": key_condition}
-            if limit:
-                query_params["Limit"] = limit
-            response = self.table.query(**query_params)
-            return response.get("Items", [])
-        except ClientError as e:
-            raise StorageError(
-                f"Failed to query items from DynamoDB",
-                code="query_items_failed",
-                details={"error": str(e)},
-            )
-        except Exception as e:
-            raise StorageError(
-                f"Failed to query items from DynamoDB",
-                code="query_items_failed",
-                details={"error": str(e)},
-            )
+        """Query items by partition key and sort key prefix.
+
+        This method handles DynamoDB pagination to fetch all items, even if they exceed
+        DynamoDB's 1MB response limit.
+
+        Args:
+            pk: Partition key to query
+            sk_prefix: Sort key prefix to match
+            limit: Optional maximum number of items to return
+
+        Returns:
+            List of items matching the query
+
+        Raises:
+            StorageError: If the query operation fails
+        """
+        key_condition = Key("PK").eq(pk) & Key("SK").begins_with(sk_prefix)
+        query_params = {"KeyConditionExpression": key_condition}
+        if limit:
+            query_params["Limit"] = limit
+
+        return self._paginated_query(query_params, limit)
 
     def update_item(
         self,
