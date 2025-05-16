@@ -1,11 +1,11 @@
 from pathlib import Path
 
 import pypdfium2 as pdfium
-from pypdfium2.raw import FPDFBitmap_BGRA
 
 from ..models.domain import Document, Page
 from .document import extract_meta_data
 from .page import extract_pages
+from .render import render_pages
 
 ORIGINAL_PDF_FILE_NAME = "original.pdf"
 
@@ -33,6 +33,9 @@ def process_pdf(working_dir: Path, document: Document) -> Document:
 
     meta = extract_meta_data(pdf)
     pages: list[Page] = extract_pages(pdf)
+
+    # render pages
+    render_pages(file, working_dir, pages)
 
     return document.model_copy(
         update={"page_count": len(pages), "pages": pages, "info": meta}
