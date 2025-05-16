@@ -18,7 +18,7 @@ class PDFObject(BaseModel):
         content: Optional content (text, path data, etc.)
     """
 
-    id: str = Field(..., description="Unique object identifier")
+    id: int = Field(..., description="Unique object identifier")
     type: PDFObjectType = Field(..., description="Type of PDF object")
     bbox: List[float] = Field(
         ...,
@@ -26,7 +26,7 @@ class PDFObject(BaseModel):
         max_items=4,
         description="Bounding box coordinates [x1, y1, x2, y2]",
     )
-    z_index: int = Field(..., description="Z-index for rendering order")
+    z_index: Optional[int] = Field(None, description="Z-index for rendering order")
     content: Optional[str] = Field(
         None, description="Optional content (text, path data, etc.)"
     )
