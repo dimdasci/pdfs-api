@@ -27,23 +27,24 @@ def render_layer(
         Raises:
             ValueError: If the start index is greater than the end index.
     """
+    temp_doc = None  # Initialize temp_doc to None
+    try:
+        temp_doc = pdfium.PdfDocument(file)
+        temp_page = temp_doc[page_idx]
 
-    temp_doc = pdfium.PdfDocument(file)
-    temp_page = temp_doc[page_idx]
-
-    create_layer(temp_page, start, end)
-    img = (
-        temp_page.render(
-            scale=scale,
-            fill_color=(0, 0, 0, 0),  # transparent background
-            force_bitmap_format=FPDFBitmap_BGRA,
+        create_layer(temp_page, start, end)
+        img = (
+            temp_page.render(
+                scale=scale,
+                fill_color=(0, 0, 0, 0),  # transparent background
+                force_bitmap_format=FPDFBitmap_BGRA,
+            )
+            .to_pil()
+            .convert("RGBA")
         )
-        .to_pil()
-        .convert("RGBA")
-    )
-
-    # Clean up
-    temp_doc = None
+    finally:
+        if temp_doc:
+            temp_doc.close()  # Explicitly close the document
 
     return img
 
@@ -60,19 +61,20 @@ def render_page(file: Path, page: int, scale: float) -> Image:
     Returns:
         Image: The rendered PIL image of the page.
     """
+    temp_doc = None  # Initialize temp_doc to None
+    try:
+        temp_doc = pdfium.PdfDocument(file)
+        bitmap = temp_doc[page].render(
+            scale=scale,
+            draw_annots=True,
+            prefer_bgrx=True,
+        )
+        img = bitmap.to_pil().convert("RGBA")
+    finally:
+        if temp_doc:
+            temp_doc.close()  # Explicitly close the document
 
-    temp_doc = pdfium.PdfDocument(file)
-
-    bitmap = temp_doc[page].render(
-        scale=scale,
-        draw_annots=True,
-        prefer_bgrx=True,
-    )
-
-    # Clean up
-    temp_doc = None
-
-    return bitmap.to_pil().convert("RGBA")
+    return img
 
 
 def create_layer(page: pdfium.PdfPage, start: int, end: int) -> pdfium.PdfPage:

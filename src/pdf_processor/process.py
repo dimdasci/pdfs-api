@@ -28,11 +28,15 @@ def process_pdf(working_dir: Path, document: Document) -> Document:
     if not file.exists():
         raise FileNotFoundError(f"File {file} does not exist.")
 
-    # Read the PDF file
-    pdf = pdfium.PdfDocument(file)
-
-    meta = extract_meta_data(pdf)
-    pages: list[Page] = extract_pages(pdf)
+    pdf = None  # Initialize pdf to None
+    try:
+        # Read the PDF file
+        pdf = pdfium.PdfDocument(file)
+        meta = extract_meta_data(pdf)
+        pages: list[Page] = extract_pages(pdf)
+    finally:
+        if pdf:
+            pdf.close()  # Explicitly close the document
 
     # render pages
     render_pages(file, working_dir, pages)
