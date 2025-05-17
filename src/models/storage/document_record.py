@@ -1,12 +1,11 @@
 """Document storage model."""
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, HttpUrl
 
-from ..domain.document import Document, DocumentSource
-from ..domain.enums import ProcessingStatus
+from ..domain import Document, DocumentSource, Page, ProcessingStatus
 
 
 class DocumentRecord(BaseModel):
@@ -90,11 +89,11 @@ class DocumentRecord(BaseModel):
             size_in_bytes=item.get("size_in_bytes"),
         )
 
-    def to_domain(self, pages: Optional[Dict] = None) -> Document:
+    def to_domain(self, pages: Optional[List[Page]] = None) -> Document:
         """Convert to domain Document.
 
         Args:
-            pages: Optional dictionary of pages to include
+            pages: Optional list of pages to include
 
         Returns:
             Domain Document instance
@@ -108,7 +107,7 @@ class DocumentRecord(BaseModel):
             status=self.status,
             uploaded=self.uploaded,
             page_count=self.page_count,
-            pages=pages or {},
+            pages=pages or [],
             size_in_bytes=self.size_in_bytes,
         )
 
