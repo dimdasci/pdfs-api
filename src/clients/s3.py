@@ -1,5 +1,6 @@
 """Client wrapper for S3 operations."""
 
+from pathlib import Path
 from typing import Optional
 
 import boto3
@@ -7,6 +8,7 @@ from botocore.exceptions import ClientError
 
 from ..config.app import AppConfig
 from ..middleware.exceptions import StorageError
+from ..middleware.logging import logger
 
 
 class S3Client:
@@ -123,5 +125,102 @@ class S3Client:
             raise StorageError(
                 f"Failed to delete object",
                 code="delete_object_failed",
+                details={"e": str(e)},
+            )
+
+    def download_file(self, bucket_name: str, object_key: str, file_path: str) -> None:
+        """Download a file from S3.
+
+        Args:
+            bucket_name: S3 bucket name
+            object_key: S3 object key
+            file_path: Local file path to save the downloaded file
+
+        Raises:
+            StorageError: If download fails
+        """
+        try:
+            self.s3.download_file(bucket_name, object_key, file_path)
+        except ClientError as e:
+            raise StorageError(
+                "Failed to download file",
+                code="download_file_failed",
+                details={"e": str(e)},
+            )
+
+    def sync_directory(self, local_dir: Path, s3_prefix: str) -> None:
+        """Sync local directory to S3 bucket, similar to 'aws s3 sync' command.
+
+        Args:
+            local_dir: Local directory path
+            s3_prefix: S3 prefix (folder path in bucket)
+
+        Raises:
+            StorageError: If sync operation fails
+        """
+        try:
+            # Find all matching files in the local directory
+            files_found = 0
+            files_uploaded = 0
+
+            for filepath in local_dir.rglob("*"):
+                if not filepath.is_file() or not filepath.name.endswith(".png"):
+                    continue
+
+                files_found += 1
+
+                # Calculate relative path from base directory
+                rel_path = filepath.relative_to(local_dir)
+                s3_key = f"{s3_prefix.rstrip('/')}/{str(rel_path)}"
+
+                # Upload file with appropriate content type and metadata
+                with open(filepath, "rb") as f:
+                    response = self.s3.put_object(
+                        Bucket=self.bucket,
+                        Key=s3_key,
+                        Body=f,
+                        ContentType="image/png",
+                        Metadata={"generated": "true"},
+                    )
+
+                # Verify upload was successful by checking response
+                if response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 200:
+                    files_uploaded += 1
+                else:
+                    logger.error(
+                        f"Failed to upload {rel_path}",
+                        extra={
+                            "status_code": response.get("ResponseMetadata", {}).get(
+                                "HTTPStatusCode"
+                            )
+                        },
+                    )
+
+            if files_found == 0:
+                logger.warning(f"No files found in {local_dir}")
+            else:
+                logger.debug(
+                    f"Sync completed",
+                    extra={
+                        "files_found": files_found,
+                        "files_uploaded": files_uploaded,
+                        "s3_prefix": s3_prefix,
+                    },
+                )
+
+            if files_uploaded != files_found:
+                raise StorageError(
+                    f"Not all files were uploaded successfully",
+                    code="sync_partial_failure",
+                    details={
+                        "files_found": files_found,
+                        "files_uploaded": files_uploaded,
+                    },
+                )
+
+        except (OSError, ClientError) as e:
+            raise StorageError(
+                "Failed to sync directory to S3",
+                code="sync_directory_failed",
                 details={"e": str(e)},
             )
