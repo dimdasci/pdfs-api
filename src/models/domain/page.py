@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from .layer import Layer
 from .pdf_object import PDFObject
 
-Box = tuple[float, float, float, float]
+type Box = tuple[float, float, float, float]
 
 
 class Page(BaseModel):
