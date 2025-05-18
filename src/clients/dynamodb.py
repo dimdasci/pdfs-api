@@ -255,43 +255,130 @@ class DynamoDBClient:
             )
 
     def update_item_fields(self, pk: str, sk: str, updates: Dict[str, Any]) -> None:
-        """Update fields in an item in DynamoDB.
+        """Update specific fields of an item.
 
         Args:
-            pk: Partition key
-            sk: Sort key
-            updates: Dict of fields to update
+            pk: The partition key
+            sk: The sort key
+            updates: Dictionary of field names and values to update
 
         Raises:
-            DocumentNotFoundError: If item not found
-            StorageError: If update operation fails
+            DocumentNotFoundError: If the item does not exist
+            StorageError: For other DynamoDB errors
         """
         if not updates:
             return
-        update_expr = "SET " + ", ".join(f"{k} = :{k}" for k in updates)
-        expr_values = {f":{k}": v for k, v in updates.items()}
+
+        # Build update expression and expression attribute values
+        update_expressions = []
+        expression_attribute_values = {}
+        expression_attribute_names = {}
+
+        for field_name, value in updates.items():
+            # Use placeholders for all attribute names to handle reserved keywords
+            name_placeholder = f"#{field_name}"
+            value_placeholder = f":val_{field_name}"
+
+            update_expressions.append(f"{name_placeholder} = {value_placeholder}")
+            expression_attribute_values[value_placeholder] = value
+            expression_attribute_names[name_placeholder] = field_name
+
+        update_expression = "SET " + ", ".join(update_expressions)
+
         try:
             self.table.update_item(
                 Key={"PK": pk, "SK": sk},
-                UpdateExpression=update_expr,
-                ExpressionAttributeValues=expr_values,
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_attribute_values,
+                ExpressionAttributeNames=expression_attribute_names,
                 ConditionExpression="attribute_exists(PK) AND attribute_exists(SK)",
             )
         except ClientError as e:
-            error_code = e.response.get("Error", {}).get("Code", "")
+            error_code = e.response["Error"]["Code"]
             if error_code == "ConditionalCheckFailedException":
-                raise DocumentNotFoundError(
-                    document_id=sk,
-                    message=f"Document with PK {pk} and SK {sk} not found",
+                raise DocumentNotFoundError(f"Item with PK={pk} and SK={sk} not found")
+            else:
+                raise StorageError(
+                    f"Failed to update item in DynamoDB: {str(e)}",
+                    details={"pk": pk, "sk": sk},
                 )
+        except Exception as e:
             raise StorageError(
-                f"Failed to update item in DynamoDB",
-                code="update_item_failed",
+                "Failed to update item in DynamoDB",
+                details={"pk": pk, "sk": sk, "error": str(e)},
+            )
+
+    def batch_put_items(self, items: List[Dict[str, Any]]) -> None:
+        """Put multiple items in DynamoDB using BatchWriteItem.
+
+        This method handles chunking items into 25-item batches as required by DynamoDB.
+
+        Args:
+            items: List of items to put
+
+        Raises:
+            StorageError: If batch put operation fails
+        """
+        if not items:
+            return
+
+        try:
+            # DynamoDB BatchWriteItem can process up to 25 items at once
+            # so we need to chunk our items
+            chunk_size = 25
+            for i in range(0, len(items), chunk_size):
+                chunk = items[i : i + chunk_size]
+
+                # Format for BatchWriteItem
+                request_items = {
+                    self.table.name: [{"PutRequest": {"Item": item}} for item in chunk]
+                }
+
+                # Execute batch write
+                response = self.dynamodb.batch_write_item(RequestItems=request_items)
+
+                # Check for unprocessed items and retry
+                unprocessed = response.get("UnprocessedItems", {})
+                retry_count = 0
+                max_retries = 3
+
+                while unprocessed and retry_count < max_retries:
+                    retry_count += 1
+                    logger.warning(
+                        f"Found {len(unprocessed.get(self.table.name, []))} unprocessed items, retrying (attempt {retry_count})"
+                    )
+                    # Exponential backoff would be ideal here, simplified for brevity
+                    response = self.dynamodb.batch_write_item(RequestItems=unprocessed)
+                    unprocessed = response.get("UnprocessedItems", {})
+
+                if unprocessed:
+                    logger.error(
+                        f"Failed to process all items in batch after {max_retries} retries",
+                        extra={
+                            "unprocessed_count": len(
+                                unprocessed.get(self.table.name, [])
+                            )
+                        },
+                    )
+                    raise StorageError(
+                        "Failed to process all items in batch write operation",
+                        code="batch_write_incomplete",
+                        details={
+                            "unprocessed_items": len(
+                                unprocessed.get(self.table.name, [])
+                            )
+                        },
+                    )
+
+        except ClientError as e:
+            raise StorageError(
+                "Failed to perform batch put operation",
+                code="batch_put_failed",
                 details={"error": str(e)},
             )
         except Exception as e:
             raise StorageError(
-                f"Failed to update item in DynamoDB",
-                code="update_item_failed",
+                "Unexpected error during batch put operation",
+                code="batch_put_unexpected",
                 details={"error": str(e)},
             )
