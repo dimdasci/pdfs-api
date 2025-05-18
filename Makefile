@@ -42,7 +42,7 @@ deploy-prod-guided:
 
 configure-ecr-policy:
 	aws ecr put-lifecycle-policy \
-		--repository-name pdfaapiprod41beddd1/apihandlerfunctionb1de9107repo \
+		--repository-name pdfaapiprod41beddd1/pdfprocessorfunction6f8f514erepo \
 		--lifecycle-policy-text file://ecr-lifetime-policy.json \
 		--profile dimds \
 		--output yaml
