@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional, Protocol
 
 from ..models.domain.document import Document
 from ..models.domain.page import Page
-from ..models.storage.page_bundle_record import PageBundleRecord
 
 
 class DocumentRepository(Protocol):
@@ -68,6 +67,18 @@ class DocumentRepository(Protocol):
         """
         ...
 
+    def save_pages(self, pages: List[Page], user_id: str, document_id: str) -> None:
+        """Save multiple pages to storage in batch.
+
+        Args:
+            pages: The list of Page objects to save.
+            user_id: The user who owns the document.
+            document_id: The document identifier.
+        Raises:
+            StorageGeneralError: If the save operation fails.
+        """
+        ...
+
     def save_page(self, page: Page, user_id: str, document_id: str) -> None:
         """Save a page to storage.
 
@@ -92,34 +103,6 @@ class DocumentRepository(Protocol):
         Raises:
             DocumentNotFoundError: If the page is not found.
             StorageGeneralError: If the retrieval fails.
-        """
-        ...
-
-    def list_page_bundles(
-        self, user_id: str, document_id: str
-    ) -> List[PageBundleRecord]:
-        """List all page bundle records for a document.
-
-        Args:
-            user_id: The user who owns the document.
-            document_id: The document identifier.
-        Returns:
-            List of PageBundleRecord objects.
-        Raises:
-            StorageGeneralError: If the list operation fails.
-        """
-        ...
-
-    def list_pages(self, user_id: str, document_id: str) -> List[Page]:
-        """List all pages for a document.
-
-        Args:
-            user_id: The user who owns the document.
-            document_id: The document identifier.
-        Returns:
-            List of Page objects.
-        Raises:
-            StorageGeneralError: If the list operation fails.
         """
         ...
 

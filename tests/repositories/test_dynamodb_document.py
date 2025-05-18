@@ -25,21 +25,15 @@ class TestDynamoDBDocumentRepository(unittest.TestCase):
         user_id = "test-user-123"
         now = datetime.now()
 
-        # Create mock DynamoDB items that would be returned by the query
+        # Create mock DynamoDB items that would be returned by the query.
+        # Note: Only items with SK prefix "PDF#" should be returned by the query.
         mock_items = [
-            {
-                "PK": f"USER#{user_id}",
-                "SK": "PDF#doc1#PAGE#001",
-                "user_id": user_id,
-                "created_at": now.isoformat(),
-                "display_name": "Test User",
-                # Note: No 'source' field in PROFILE record
-            },
             {
                 "PK": f"USER#{user_id}",
                 "SK": "PDF#doc1",
                 "document_id": "doc1",
                 "name": "Test Document 1",
+                "type": "DOCUMENT",  # Add type field
                 "status": "completed",
                 "page_count": 5,  # Add page_count for the completed document
                 "user_id": user_id,
@@ -52,6 +46,7 @@ class TestDynamoDBDocumentRepository(unittest.TestCase):
                 "SK": "PDF#doc2",
                 "document_id": "doc2",
                 "name": "Test Document 2",
+                "type": "DOCUMENT",  # Add type field
                 "status": "processing",
                 "page_count": 0,  # Processing document has no pages yet
                 "user_id": user_id,
