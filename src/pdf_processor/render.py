@@ -6,6 +6,7 @@ import pypdfium2 as pdfium
 from PIL.Image import Image
 from pypdfium2.raw import FPDFBitmap_BGRA
 
+from ..middleware.logging import logger
 from ..models.domain import Page
 
 
@@ -98,7 +99,13 @@ def create_layer(page: pdfium.PdfPage, start: int, end: int) -> pdfium.PdfPage:
     objs_to_remove = objs[:start] + objs[end + 1 :]
 
     for obj in objs_to_remove:
-        page.remove_obj(obj)
+        if obj.type == 4:
+            # skip shade objects
+            continue
+        try:
+            page.remove_obj(obj)
+        except pdfium.PdfiumError as e:
+            pass
     page.gen_content()
 
     return page

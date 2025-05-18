@@ -86,7 +86,7 @@ def group_by_z_index(page: pdfium.PdfPage) -> tuple[dict[int, Layer], list[PDFOb
     """
 
     z_index = 0
-    z_index_groups = {}
+    z_index_groups: dict[int, list[PDFObject]] = {}
     zero_area_objects: list[PDFObject] = []
 
     prev_type = None
@@ -105,11 +105,11 @@ def group_by_z_index(page: pdfium.PdfPage) -> tuple[dict[int, Layer], list[PDFOb
         z_index_groups.setdefault(z_index, []).append(make_object(i, z_index, obj))
         prev_type = obj.type
 
-    # convert to Layer objects
+    # convert to Layer objects and skip layers with SHADE type
     layers: dict[int, Layer] = {
         z: Layer(z_index=z, type=objects[0].type, objects=objects)
         for z, objects in z_index_groups.items()
-        if objects
+        if objects and objects[0].type != PDFObjectType.SHADE
     }
 
     return layers, zero_area_objects
