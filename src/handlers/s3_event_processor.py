@@ -12,6 +12,7 @@ from src.clients.s3 import S3Client
 from src.config.app import AppConfig
 from src.middleware.exceptions import DocumentNotFoundError, StorageError
 from src.middleware.logging import logger, logging_middleware
+from src.models.domain import ProcessingStatus
 from src.pdf_processor import process_pdf
 from src.repositories.dynamodb_document import DynamoDBDocumentRepository
 from src.utils.sqs_event import parser
@@ -122,44 +123,75 @@ def process_object(
             updates={
                 "page_count": document.page_count,
                 "info": document.info,
+                "status": ProcessingStatus.COMPLETED,
             },
         )
 
         logger.debug(f"Updated document {doc_id} with metadata")
 
         # sync all subdirectories and files in the tmp_dir to s3
-        pages_dir = tmp_dir / "pages"
-        if pages_dir.exists():
-            # Define the S3 prefix where to upload the processed files
-            s3_prefix = f"{user_id}/{doc_id}/pages"
+        sync_pages_to_s3(
+            s3=s3,
+            pages_dir=tmp_dir / "pages",
+            bucket=bucket,
+            user_id=user_id,
+            doc_id=doc_id,
+        )
 
-            try:
-                # Sync pages directory to S3 using boto3
-                logger.debug(f"Syncing {pages_dir} to s3://{bucket}/{s3_prefix}")
-                s3.sync_directory(pages_dir, s3_prefix)
-                logger.debug("S3 sync completed")
-            except StorageError as e:
-                logger.error(
-                    f"Failed to sync pages directory to S3: {str(e)}",
-                    extra={
-                        "user_id": user_id,
-                        "doc_id": doc_id,
-                    },
-                )
-        else:
-            logger.warning(
-                f"Pages directory not found at {pages_dir}",
-                extra={
-                    "user_id": user_id,
-                    "doc_id": doc_id,
-                },
-            )
+        # save all page bundles to repository in a single batch operation
+        repository.save_pages(
+            pages=document.pages,
+            user_id=user_id,
+            document_id=doc_id,
+        )
+
+        logger.debug(f"Saved {len(document.pages)} page bundles for document {doc_id}")
 
         logger.info(
             "PDF processing complete",
             extra={
                 "user_id": user_id,
                 "doc_id": doc_id,
-                "page_count": getattr(document, "page_count", 0),
+                "page_count": document.page_count,
+            },
+        )
+
+
+def sync_pages_to_s3(
+    s3, pages_dir: Path, bucket: str, user_id: str, doc_id: str
+) -> None:
+    """
+    Sync a directory with page renders to an S3 bucket.
+
+    Args:
+        s3 (S3Client): The S3 client to use for syncing.
+        pages_dir (Path): The local directory to sync.
+        bucket (str): The S3 bucket name.
+        user_id (str): The user ID.
+        doc_id (str): The document ID.
+    """
+    if pages_dir.exists():
+        # Define the S3 prefix where to upload the processed files
+        s3_prefix = f"{user_id}/{doc_id}/pages"
+
+        try:
+            # Sync pages directory to S3 using boto3
+            logger.debug(f"Syncing {pages_dir} to s3://{bucket}/{s3_prefix}")
+            s3.sync_directory(pages_dir, s3_prefix)
+            logger.debug("S3 sync completed")
+        except StorageError as e:
+            logger.error(
+                f"Failed to sync pages directory to S3: {str(e)}",
+                extra={
+                    "user_id": user_id,
+                    "doc_id": doc_id,
+                },
+            )
+    else:
+        logger.warning(
+            f"Pages directory not found at {pages_dir}",
+            extra={
+                "user_id": user_id,
+                "doc_id": doc_id,
             },
         )
