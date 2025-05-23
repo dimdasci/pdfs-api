@@ -309,9 +309,7 @@ class DynamoDBClient:
             )
 
     def batch_put_items(self, items: List[Dict[str, Any]]) -> None:
-        """Put multiple items in DynamoDB using BatchWriteItem.
-
-        This method handles chunking items into 25-item batches as required by DynamoDB.
+        """Put multiple items in DynamoDB using batch_writer.
 
         Args:
             items: List of items to put
@@ -324,51 +322,14 @@ class DynamoDBClient:
 
         try:
             # DynamoDB BatchWriteItem can process up to 25 items at once
-            # so we need to chunk our items
             chunk_size = 25
             for i in range(0, len(items), chunk_size):
                 chunk = items[i : i + chunk_size]
-
-                # Format for BatchWriteItem
-                request_items = {
-                    self.table.name: [{"PutRequest": {"Item": item}} for item in chunk]
-                }
-
-                # Execute batch write
-                response = self.dynamodb.batch_write_item(RequestItems=request_items)
-
-                # Check for unprocessed items and retry
-                unprocessed = response.get("UnprocessedItems", {})
-                retry_count = 0
-                max_retries = 3
-
-                while unprocessed and retry_count < max_retries:
-                    retry_count += 1
-                    logger.warning(
-                        f"Found {len(unprocessed.get(self.table.name, []))} unprocessed items, retrying (attempt {retry_count})"
-                    )
-                    # Exponential backoff would be ideal here, simplified for brevity
-                    response = self.dynamodb.batch_write_item(RequestItems=unprocessed)
-                    unprocessed = response.get("UnprocessedItems", {})
-
-                if unprocessed:
-                    logger.error(
-                        f"Failed to process all items in batch after {max_retries} retries",
-                        extra={
-                            "unprocessed_count": len(
-                                unprocessed.get(self.table.name, [])
-                            )
-                        },
-                    )
-                    raise StorageError(
-                        "Failed to process all items in batch write operation",
-                        code="batch_write_incomplete",
-                        details={
-                            "unprocessed_items": len(
-                                unprocessed.get(self.table.name, [])
-                            )
-                        },
-                    )
+                
+                # Use the batch_writer context manager
+                with self.table.batch_writer() as batch:
+                    for item in chunk:
+                        batch.put_item(Item=item)
 
         except ClientError as e:
             raise StorageError(

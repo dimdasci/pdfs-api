@@ -2,6 +2,7 @@
 
 import json
 from typing import Iterator
+from urllib.parse import unquote_plus
 
 from aws_lambda_powertools.utilities.data_classes import SQSEvent
 
@@ -14,7 +15,7 @@ def parser(event: SQSEvent) -> Iterator[dict]:
         event (SQSEvent): The SQS event containing records.
 
     Returns:
-        Iterator[dict]: An iterator of dictionaries containing the object info.
+        Iterator[dict]: An iterator of dictionaries containing the object info with decoded keys.
 
     Raises:
         ValueError: If the S3 object is not found in the event.
@@ -30,4 +31,7 @@ def parser(event: SQSEvent) -> Iterator[dict]:
             obj = s3_record["s3"].get("object")
             if not obj:
                 raise ValueError("S3 object not found in the event")
+            # Decode the URL-encoded key
+            if "key" in obj:
+                obj["key"] = unquote_plus(obj["key"])
             yield obj
