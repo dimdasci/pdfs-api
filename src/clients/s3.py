@@ -171,7 +171,7 @@ class S3Client:
 
                 # Calculate relative path from base directory
                 rel_path = filepath.relative_to(local_dir)
-                s3_key = f"{s3_prefix.rstrip('/')}/{str(rel_path)}"
+                s3_key = f"{s3_prefix.rstrip('/')}/{rel_path.as_posix()}"
 
                 # Upload file with appropriate content type and metadata
                 with open(filepath, "rb") as f:
