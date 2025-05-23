@@ -198,7 +198,7 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt PdfProcessingSqsDeadLetterQueue.Arn
         maxReceiveCount: 5 # Number of times a message is retried before sending to DLQ
-      # IMPORTANT: The S3 bucket 'dimosaic-pdf-analyser-svhy308sv6' (from Global Env Var PDF_BUCKET_NAME)
+      # IMPORTANT: The S3 bucket name is dynamically set from the Global Env Var PDF_BUCKET_NAME (!Ref PdfBucketName)
       # must be configured separately using Makefile command.
 
   # Policy to allow S3 to send messages to the SQS Queue
