@@ -11,7 +11,7 @@
         "x-forwarded-proto": "http",
         "x-forwarded-port": "3000",
         "x-forwarded-for": "127.0.0.1",
-        "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzNjIyNzdiMTM4MTVkYzA0NzNmODBiYmM0NTU3YjUyMjBjMGUwNzAwMWYzYTZjNjk4MzhmNTkyMDc1ZjJmOGIzIiwiZW1haWwiOiJkbWl0cmlpQGZhc3RtYWlsLmNvbSIsImV4cCI6MTc0NzE3NzkyNCwiaWF0IjoxNzQ3MTQ5MTI0LCJqdGkiOiJkNTM3ZmFiMy03ODVhLTQ1NzEtYjM3My01M2MyZTU0NDVlYjAifQ.mON9CRY_M7bwlJLPq88FOx6Sfb7P2ll4t_XWnVRQTsA"
+        "authorization": "Bearer XXXXXXXXXXXXXX"
     },
     "requestContext": {
         "accountId": "123456789012",

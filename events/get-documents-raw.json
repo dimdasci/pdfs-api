@@ -13,7 +13,7 @@
             "accept": "*/*",
             "accept-encoding": "gzip, deflate, br",
             "accept-language": "en-US,en;q=0.9,ru-RU;q=0.8,ru;q=0.7,es;q=0.6",
-            "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzNjIyNzdiMTM4MTVkYzA0NzNmODBiYmM0NTU3YjUyMjBjMGUwNzAwMWYzYTZjNjk4MzhmNTkyMDc1ZjJmOGIzIiwiZW1haWwiOiJkbWl0cmlpQGZhc3RtYWlsLmNvbSIsImV4cCI6MTc0NzI2MzI3NywiaWF0IjoxNzQ3MjM0NDc3LCJqdGkiOiI0YmZkNTJhNy1kMjY0LTQwODQtOTYxOC03M2IzNmRkMTQ5NzcifQ.z1X-SCPPPQRlmbshqrOL4oMrPLMyBGSksoJq1ir0kpU",
+            "authorization": "Bearer XXXXXXXXXXXXXX",
             "content-length": "0",
             "content-type": "application/json",
             "host": "pdfa.dimosaic.dev",
