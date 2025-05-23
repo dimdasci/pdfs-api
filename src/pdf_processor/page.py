@@ -65,7 +65,6 @@ def process_page(num: int, page: pdfium.PdfPage) -> Page:
     layers, zero_area_objects = group_by_z_index(page)
     return Page(
         number=num,
-        objects=None,
         layers=layers,
         zero_area_objects=zero_area_objects,
         **get_page_meta(page),
