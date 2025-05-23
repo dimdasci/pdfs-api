@@ -32,6 +32,7 @@ class Document(BaseModel):
         uploaded: Upload timestamp
         size_in_bytes: Size of the document in bytes
         page_count: Total number of pages
+        info: Dictionary of document meta-data
         pages: Dictionary of pages by page number
     """
 
@@ -54,9 +55,10 @@ class Document(BaseModel):
         default=None,
         description="Total number of pages in the document after processing",
     )
-    pages: Dict[int, Page] = Field(
-        default_factory=dict, description="Dictionary of pages by page number"
+    info: Optional[Dict[str, Union[str, int]]] = Field(
+        default=None, description="Dictionary of document meta-data"
     )
+    pages: List[Page] = Field(default_factory=list, description="List of pages")
 
     def update_status(self, new_status: ProcessingStatus) -> None:
         """Update document status if transition is valid.
@@ -78,15 +80,10 @@ class Document(BaseModel):
 
         Args:
             page: Page to add
-
-        Raises:
-            ValueError: If page number already exists
         """
-        if page.number in self.pages:
-            raise ValueError(f"Page {page.number} already exists")
-        self.pages[page.number] = page
+        self.pages.append(page)
         self.page_count = len(self.pages)
 
     def get_page(self, number: int) -> Optional[Page]:
         """Get page by number."""
-        return self.pages.get(number)
+        return self.pages[number] if number in self.pages else None

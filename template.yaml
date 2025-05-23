@@ -16,8 +16,8 @@ Globals:
       Owner: Dim
     Environment:
       Variables:
-        PDF_BUCKET_NAME: "dimosaic-pdf-analyser-svhy308sv6"
-        DYNAMODB_TABLE_NAME: "dimosaic-app-prod"
+        PDF_BUCKET_NAME: !Ref PdfBucketName
+        DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
         POWERTOOLS_SERVICE_NAME: pdfa-api
         POWERTOOLS_LOGGER_LOG_EVENT: true
         POWERTOOLS_LOG_LEVEL: DEBUG
@@ -46,6 +46,14 @@ Parameters:
     Type: String
     Description: CORS Allow-Origin header value
     Default: https://dimosaic.dev
+  PdfBucketName:
+    Type: String
+    Default: dimosaic-pdf-analyser-svhy308sv6
+    Description: Name of the S3 bucket for PDF storage
+  DynamoDBTableName:
+    Type: String
+    Default: dimosaic-app-prod
+    Description: Name of the DynamoDB table for application data
 
 Resources:
   # Log Group for API Gateway Access Logs
@@ -160,20 +168,113 @@ Resources:
       Policies:
         # Combined policies needed for all routes
         - S3WritePolicy:
-            BucketName: "dimosaic-pdf-analyser-svhy308sv6"
+            BucketName: !Ref PdfBucketName
         - S3ReadPolicy:
-            BucketName: "dimosaic-pdf-analyser-svhy308sv6"
+            BucketName: !Ref PdfBucketName
         - DynamoDBReadPolicy:
-            TableName: "dimosaic-app-prod"
+            TableName: !Ref DynamoDBTableName
         # DynamoDBWritePolicy
         - DynamoDBWritePolicy:
-            TableName: "dimosaic-app-prod"
+            TableName: !Ref DynamoDBTableName
     Metadata:
       Dockerfile: Dockerfile
       DockerContext: .
       DockerTag: python3.13-v1
 
+  # SQS Dead Letter Queue for PDF Processing
+  PdfProcessingSqsDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub pdf-processing-dlq-${StageName}
+      MessageRetentionPeriod: 1209600 # 14 days in seconds
+
+  # SQS Queue for PDF Processing tasks
+  PdfProcessingSqsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub pdf-processing-queue-${StageName}
+      # VisibilityTimeout should be longer than your Lambda's expected processing time + buffer
+      VisibilityTimeout: 360 # 6 minutes, adjust as needed based on actual processing time
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt PdfProcessingSqsDeadLetterQueue.Arn
+        maxReceiveCount: 5 # Number of times a message is retried before sending to DLQ
+      # IMPORTANT: The S3 bucket name is dynamically set from the Global Env Var PDF_BUCKET_NAME (!Ref PdfBucketName)
+      # must be configured separately using Makefile command.
+
+  # Policy to allow S3 to send messages to the SQS Queue
+  S3ToSqsQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref PdfProcessingSqsQueue
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: SQS:SendMessage
+            Resource: !GetAtt PdfProcessingSqsQueue.Arn
+            Condition:
+              # Ensure this ArnLike matches the S3 bucket ARN.
+              # PDF_BUCKET_NAME is defined in Globals.Function.Environment.Variables
+              ArnLike: {"aws:SourceArn": !Sub "arn:${AWS::Partition}:s3:::${PdfBucketName}"}
+              StringEquals: {"aws:SourceAccount": !Ref "AWS::AccountId"}
+
+  # Log Group for the PDF Processor Lambda
+  PdfProcessorFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/pdf-processor-${StageName}
+      RetentionInDays: 5
+
+  # Lambda function to process PDF files from SQS
+  PdfProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Description: "Processes PDF files from SQS queue (triggered by S3 uploads)"
+      FunctionName: !Sub pdf-processor-${StageName}
+      MemorySize: 1024 # Override global MemorySize
+      Timeout: 300 # Override global Timeout (in seconds)
+      EphemeralStorage: # Add ephemeral storage
+        Size: 1024
+      ImageConfig:
+        Command:
+          # Verify this handler path. It should point to the handler that processes SQS messages containing S3 events.
+          - src.handlers.s3_event_processor.lambda_handler
+      Events:
+        SqsPdfEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt PdfProcessingSqsQueue.Arn
+            BatchSize: 1 # Process one S3 event (message) at a time. Adjust if your handler supports batching.
+            # Enabled: true # Default is true
+      Policies:
+        # S3 policies for the PDF bucket (referenced from Globals)
+        - S3ReadPolicy:
+            BucketName: !Ref PdfBucketName
+        - S3WritePolicy: # If the function needs to write back to the bucket
+            BucketName: !Ref PdfBucketName
+        # DynamoDB policies for the application table (referenced from Globals)
+        - DynamoDBReadPolicy:
+            TableName: !Ref DynamoDBTableName
+        - DynamoDBWritePolicy:
+            TableName: !Ref DynamoDBTableName
+        # The Lambda execution role will automatically get sqs:ReceiveMessage, sqs:DeleteMessage, 
+        # and sqs:GetQueueAttributes permissions for the SQS queue defined in Events.
+      # Environment variables will be inherited from the Globals section.
+      # The Lambda will receive SQS messages containing S3 event notifications.
+      # It will need to parse these messages to get bucket name and object key.
+      # The PDF_BUCKET_NAME and DYNAMODB_TABLE_NAME are already available from Globals.
+    Metadata:
+      Dockerfile: Dockerfile # Assuming the same Dockerfile as ApiHandlerFunction
+      DockerContext: .      # Assuming the same Docker context
+      DockerTag: python3.13-v1 # Assuming the same Docker tag
+
 Outputs:
   PdfAnalysisApiEndpoint:
     Description: "API Gateway endpoint URL for Prod stage"
     Value: !Sub "https://${PdfAnalysisHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  PdfProcessingSqsQueueArn:
+    Description: "ARN of the SQS queue for PDF processing"
+    Value: !GetAtt PdfProcessingSqsQueue.Arn

@@ -11,3 +11,8 @@ __pycache__/
 
 .aws-sam/
 .ruff_cache/
+
+tmp/
+src/pdf.py
+
+.vscode/

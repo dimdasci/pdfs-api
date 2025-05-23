@@ -1,11 +1,11 @@
 """Page domain model."""
 
-from typing import Dict, List
-
 from pydantic import BaseModel, Field
 
 from .layer import Layer
 from .pdf_object import PDFObject
+
+type Box = tuple[float, float, float, float]
 
 
 class Page(BaseModel):
@@ -16,17 +16,24 @@ class Page(BaseModel):
         width: Page width in points
         height: Page height in points
         layers: Dictionary of layers by z-index
-        objects: List of PDF objects on this page
     """
 
     number: int = Field(..., gt=0, description="Page number (1-based)")
     width: float = Field(..., gt=0, description="Page width in points")
     height: float = Field(..., gt=0, description="Page height in points")
-    layers: Dict[int, Layer] = Field(
+    rotation: int = Field(0, description="Page rotation in degrees (0, 90, 180, 270)")
+    mediabox: Box = Field(..., description="Media box coordinates")
+    cropbox: Box = Field(..., description="Crop box coordinates")
+    bleedbox: Box = Field(..., description="Bleed box coordinates")
+    trimbox: Box = Field(..., description="Trim box coordinates")
+    artbox: Box = Field(..., description="Art box coordinates")
+    bbox: Box = Field(..., description="Bounding box coordinates")
+
+    layers: dict[int, Layer] = Field(
         default_factory=dict, description="Dictionary of layers by z-index"
     )
-    objects: List[PDFObject] = Field(
-        default_factory=list, description="List of PDF objects on this page"
+    zero_area_objects: list[PDFObject] = Field(
+        default_factory=list, description="List of zero area objects"
     )
 
     def add_layer(self, layer: Layer) -> None:
@@ -41,13 +48,3 @@ class Page(BaseModel):
         if layer.z_index in self.layers:
             raise ValueError(f"Layer with z-index {layer.z_index} already exists")
         self.layers[layer.z_index] = layer
-
-    def add_object(self, obj: PDFObject) -> None:
-        """Add a PDF object to the page.
-
-        Args:
-            obj: PDF object to add
-        """
-        self.objects.append(obj)
-        if obj.z_index not in self.layers:
-            self.add_layer(Layer(z_index=obj.z_index, type=obj.type))

@@ -37,5 +37,5 @@ class PDFObjectType(str, Enum):
     PATH = "path"
     IMAGE = "image"
     SHADE = "shade"
-    ANNOT = "annot"
     FORM = "form"
+    UNKNOWN = "unknown"
