@@ -1,0 +1,40 @@
+{
+  "version": "2.0",
+  "routeKey": "GET /documents/{docId}/pages/{page}",
+  "rawPath": "/documents/test-doc-id/pages/1",
+  "rawQueryString": "",
+  "headers": {
+    "accept": "application/json",
+    "authorization": "Bearer test-token",
+    "content-length": "0",
+    "host": "api.example.com",
+    "user-agent": "curl/7.64.1",
+    "x-amzn-trace-id": "Root=1-12345678-1234567890abcdef12345678",
+    "x-forwarded-for": "192.0.2.1",
+    "x-forwarded-port": "443",
+    "x-forwarded-proto": "https"
+  },
+  "requestContext": {
+    "accountId": "123456789012",
+    "apiId": "api-id",
+    "domainName": "api.example.com",
+    "domainPrefix": "api",
+    "http": {
+      "method": "GET",
+      "path": "/documents/test-doc-id/pages/1",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "192.0.2.1",
+      "userAgent": "curl/7.64.1"
+    },
+    "requestId": "id",
+    "routeKey": "GET /documents/{docId}/pages/{page}",
+    "stage": "$default",
+    "time": "12/Mar/2023:19:03:58 +0000",
+    "timeEpoch": 1678648638390
+  },
+  "pathParameters": {
+    "docId": "test-doc-id",
+    "page": "1"
+  },
+  "isBase64Encoded": false
+}
