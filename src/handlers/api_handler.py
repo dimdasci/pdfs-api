@@ -1,15 +1,19 @@
-import functools  # Import functools for partial
-from datetime import datetime, timezone
+import functools
 from typing import List
 
 from aws_lambda_powertools.event_handler import APIGatewayHttpResolver, CORSConfig
 from aws_lambda_powertools.logging import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
+from pydantic import HttpUrl
 
 from src.clients.dynamodb import DynamoDBClient
 from src.clients.s3 import S3Client
 from src.config.app import AppConfig
-from src.handlers import handle_get_documents, handle_upload_document
+from src.handlers import (
+    handle_get_document,
+    handle_get_documents,
+    handle_upload_document,
+)
 from src.middleware.auth import create_inject_user_context_decorator
 from src.middleware.error_handler import error_handler_middleware
 from src.middleware.logging import logging_middleware
@@ -95,9 +99,9 @@ def get_documents() -> List[DocumentListItem]:
 @app.get("/documents/<docId>")
 @inject_user_context
 def get_document_summary(docId: str) -> DocumentSummary:
-    """Handle GET /documents/{docId} (stub).
+    """Handle GET /documents/{docId}.
 
-    Returns high-level metadata for a specific document.
+    Returns metadata for a specific document.
     Requires authentication (handled by API Gateway Authorizer).
     User context is injected by @inject_user_context.
     """
@@ -106,25 +110,8 @@ def get_document_summary(docId: str) -> DocumentSummary:
         "Executing get_document_summary", extra={"user_id": user_id, "docId": docId}
     )
 
-    # TODO: Implement actual data fetching for docId (checking ownership using user_id)
-    logger.info(f"Received get document summary request for {docId} (stub)")
-    if docId.startswith("nonexistent-doc") or not docId.endswith(
-        user_id[:4]
-    ):  # Simulate auth check
-        # TODO: Raise a proper NotFoundError or ForbiddenError exception
-        logger.warning(
-            "Attempt to access non-existent or unauthorized doc",
-            extra={"user_id": user_id, "docId": docId},
-        )
-        raise Exception("Document not found or access denied (stub exception)")
-
-    return DocumentSummary(
-        document_id=docId,
-        status=ProcessingStatus.COMPLETED,
-        pages=[
-            PageDetail(page=1, width=612.0, height=792.0, layer_count=3),
-            PageDetail(page=2, width=612.0, height=792.0, layer_count=2),
-        ],
+    return handle_get_document(
+        app=app, dynamodb_client=dynamodb_client, logger=logger, document_id=docId
     )
 
 
@@ -165,20 +152,20 @@ def get_page_bundle(docId: str, page: str) -> PageBundle:
 
     return PageBundle(
         document_id=docId,
-        page=page,
+        page=int(page),
         size=PageSize(width=612.0, height=792.0),
-        full_raster_url=f"{dummy_base_url}{docId}/page{page}/raster.png",
+        full_raster_url=HttpUrl(f"{dummy_base_url}{docId}/page{page}/raster.png"),
         layers=[
             Layer(
                 z_index=0,
                 type="text",
-                url=f"{dummy_base_url}{docId}/page{page}/layer0.json",
+                url=HttpUrl(f"{dummy_base_url}{docId}/page{page}/layer0.json"),
                 object_count=15,
             ),
             Layer(
                 z_index=1,
                 type="image",
-                url=f"{dummy_base_url}{docId}/page{page}/layer1.json",
+                url=HttpUrl(f"{dummy_base_url}{docId}/page{page}/layer1.json"),
                 object_count=2,
             ),
         ],
