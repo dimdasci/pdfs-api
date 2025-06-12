@@ -12,7 +12,7 @@ from ..config.app import AppConfig
 from ..middleware.exceptions import (
     DocumentAlreadyExistsError,
     DocumentNotFoundError,
-    StorageError,
+    StorageGeneralError,
 )
 
 logger = Logger()
@@ -29,7 +29,7 @@ class DynamoDBClient:
         """
         self.config = config
         self.dynamodb = boto3.resource("dynamodb")
-        self.table = self.dynamodb.Table(config.dynamodb_table_name)
+        self.table = self.dynamodb.Table(config.dynamodb_table_name) # type: ignore
 
     def put_item(self, item: Dict[str, Any]) -> None:
         """Put an item in DynamoDB.
@@ -62,9 +62,8 @@ class DynamoDBClient:
                 raise DocumentAlreadyExistsError(
                     f"Document with PK {item.get('PK')} and SK {item.get('SK')} already exists"
                 )
-            raise StorageError(
+            raise StorageGeneralError(
                 f"Failed to put item in DynamoDB",
-                code="put_item_failed",
                 details={"error": str(e)},
             )
 
@@ -94,15 +93,13 @@ class DynamoDBClient:
         except DocumentNotFoundError:
             raise
         except ClientError as e:
-            raise StorageError(
+            raise StorageGeneralError(
                 f"Failed to get item from DynamoDB",
-                code="get_item_failed",
                 details={"error": str(e)},
             )
         except Exception as e:
-            raise StorageError(
+            raise StorageGeneralError(
                 f"Failed to get item from DynamoDB",
-                code="get_item_failed",
                 details={"error": str(e)},
             )
 
@@ -149,15 +146,13 @@ class DynamoDBClient:
             return items
 
         except ClientError as e:
-            raise StorageError(
+            raise StorageGeneralError(
                 f"Failed to query items from DynamoDB",
-                code="query_items_failed",
                 details={"error": str(e)},
             )
         except Exception as e:
-            raise StorageError(
+            raise StorageGeneralError(
                 f"Failed to query items from DynamoDB",
-                code="query_items_failed",
                 details={"error": str(e)},
             )
 
@@ -179,7 +174,7 @@ class DynamoDBClient:
         """
         query_params = {"KeyConditionExpression": Key("PK").eq(pk)}
         if limit:
-            query_params["Limit"] = limit
+            query_params["Limit"] = limit # type: ignore
 
         return self._paginated_query(query_params, limit)
 
@@ -205,7 +200,7 @@ class DynamoDBClient:
         key_condition = Key("PK").eq(pk) & Key("SK").begins_with(sk_prefix)
         query_params = {"KeyConditionExpression": key_condition}
         if limit:
-            query_params["Limit"] = limit
+            query_params["Limit"] = limit # type: ignore
 
         return self._paginated_query(query_params, limit)
 
@@ -242,15 +237,13 @@ class DynamoDBClient:
                     document_id=sk,
                     message=f"Document with PK {pk} and SK {sk} not found",
                 )
-            raise StorageError(
+            raise StorageGeneralError(
                 f"Failed to update item in DynamoDB",
-                code="update_item_failed",
                 details={"error": str(e)},
             )
         except Exception as e:
-            raise StorageError(
+            raise StorageGeneralError(
                 f"Failed to update item in DynamoDB",
-                code="update_item_failed",
                 details={"error": str(e)},
             )
 
@@ -298,12 +291,12 @@ class DynamoDBClient:
             if error_code == "ConditionalCheckFailedException":
                 raise DocumentNotFoundError(f"Item with PK={pk} and SK={sk} not found")
             else:
-                raise StorageError(
+                raise StorageGeneralError(
                     f"Failed to update item in DynamoDB: {str(e)}",
                     details={"pk": pk, "sk": sk},
                 )
         except Exception as e:
-            raise StorageError(
+            raise StorageGeneralError(
                 "Failed to update item in DynamoDB",
                 details={"pk": pk, "sk": sk, "error": str(e)},
             )
@@ -325,21 +318,19 @@ class DynamoDBClient:
             chunk_size = 25
             for i in range(0, len(items), chunk_size):
                 chunk = items[i : i + chunk_size]
-                
+
                 # Use the batch_writer context manager
                 with self.table.batch_writer() as batch:
                     for item in chunk:
                         batch.put_item(Item=item)
 
         except ClientError as e:
-            raise StorageError(
+            raise StorageGeneralError(
                 "Failed to perform batch put operation",
-                code="batch_put_failed",
                 details={"error": str(e)},
             )
         except Exception as e:
-            raise StorageError(
+            raise StorageGeneralError(
                 "Unexpected error during batch put operation",
-                code="batch_put_unexpected",
                 details={"error": str(e)},
             )
