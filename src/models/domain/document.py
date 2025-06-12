@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -55,7 +55,7 @@ class Document(BaseModel):
         default=None,
         description="Total number of pages in the document after processing",
     )
-    info: Optional[Dict[str, Union[str, int]]] = Field(
+    info: Optional[Dict[str, Any]] = Field(
         default=None, description="Dictionary of document meta-data"
     )
     pages: List[Page] = Field(default_factory=list, description="List of pages")

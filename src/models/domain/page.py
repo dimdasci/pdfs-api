@@ -1,5 +1,7 @@
 """Page domain model."""
 
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 from .layer import Layer
@@ -22,12 +24,12 @@ class Page(BaseModel):
     width: float = Field(..., gt=0, description="Page width in points")
     height: float = Field(..., gt=0, description="Page height in points")
     rotation: int = Field(0, description="Page rotation in degrees (0, 90, 180, 270)")
-    mediabox: Box = Field(..., description="Media box coordinates")
-    cropbox: Box = Field(..., description="Crop box coordinates")
-    bleedbox: Box = Field(..., description="Bleed box coordinates")
-    trimbox: Box = Field(..., description="Trim box coordinates")
-    artbox: Box = Field(..., description="Art box coordinates")
-    bbox: Box = Field(..., description="Bounding box coordinates")
+    mediabox: Optional[Box] = Field(None, description="Media box coordinates")
+    cropbox: Optional[Box] = Field(None, description="Crop box coordinates")
+    bleedbox: Optional[Box] = Field(None, description="Bleed box coordinates")
+    trimbox: Optional[Box] = Field(None, description="Trim box coordinates")
+    artbox: Optional[Box] = Field(None, description="Art box coordinates")
+    bbox: Optional[Box] = Field(None, description="Bounding box coordinates")
 
     layers: dict[int, Layer] = Field(
         default_factory=dict, description="Dictionary of layers by z-index"

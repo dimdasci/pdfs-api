@@ -6,11 +6,13 @@ domain models and DynamoDB storage format, without intermediate storage models.
 
 import datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 
 from ..clients.dynamodb import DynamoDBClient
 from ..middleware.exceptions.storage import DocumentNotFoundError, StorageGeneralError
-from ..models.domain.document import Document
+from ..models.domain.document import Document, DocumentSource
+from ..models.domain.enums import PDFObjectType, ProcessingStatus
+from ..models.domain.layer import Layer
 from ..models.domain.page import Page
 from ..models.domain.pdf_object import PDFObject
 
@@ -111,8 +113,6 @@ class DynamoDBDocumentRepository:
         Raises:
             ValueError: If required fields are missing or invalid
         """
-        from ..models.domain.document import DocumentSource
-        from ..models.domain.enums import ProcessingStatus
 
         # Verify this is a document item
         if item.get("type") != "DOCUMENT":
@@ -130,11 +130,16 @@ class DynamoDBDocumentRepository:
         if created_at and created_at.endswith("Z"):
             created_at = created_at[:-1] + "+00:00"  # Replace Z with +00:00
 
+        # Process the info field if present - convert Decimal to int or float as needed
+        info = None
+        if "info" in item:
+            info = self._normalize_dynamodb_types(item.get("info"))
+
         # Create the document object
         return Document(
-            id=item.get("document_id"),
-            user_id=item.get("user_id"),
-            name=item.get("name"),
+            id=item.get("document_id", "unknown"),
+            user_id=item.get("user_id", "unknown"),
+            name=item.get("name", "unknown"),
             source=DocumentSource(source_value),
             source_url=item.get("source_url"),
             status=ProcessingStatus(
@@ -142,9 +147,10 @@ class DynamoDBDocumentRepository:
             ),
             uploaded=datetime.datetime.fromisoformat(created_at)
             if created_at
-            else None,
+            else datetime.datetime.now(datetime.timezone.utc),
             page_count=item.get("page_count"),
             size_in_bytes=item.get("size_in_bytes", 0),
+            info=info,
         )
 
     def _serialize_page(
@@ -216,7 +222,6 @@ class DynamoDBDocumentRepository:
             "trimbox": self._convert_to_dynamodb_type(page.trimbox),
             "artbox": self._convert_to_dynamodb_type(page.artbox),
             "bbox": self._convert_to_dynamodb_type(page.bbox),
-            "full_raster_url": getattr(page, "full_raster_url", None),
             "layers": self._convert_to_dynamodb_type(layers),
             "objects": self._convert_to_dynamodb_type(objects),
             "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -233,14 +238,11 @@ class DynamoDBDocumentRepository:
         Returns:
             Page domain object
         """
-        from ..models.domain.enums import PDFObjectType
-        from ..models.domain.layer import Layer
-
         # Create base page
         page = Page(
-            number=item.get("page_number"),
-            width=item.get("width"),
-            height=item.get("height"),
+            number=item.get("page_number", 0),
+            width=item.get("width", 0),
+            height=item.get("height", 0),
             rotation=item.get("rotation", 0),
             mediabox=item.get("mediabox"),
             cropbox=item.get("cropbox"),
@@ -249,10 +251,6 @@ class DynamoDBDocumentRepository:
             artbox=item.get("artbox"),
             bbox=item.get("bbox"),
         )
-
-        # Add full_raster_url if available
-        if "full_raster_url" in item:
-            setattr(page, "full_raster_url", item.get("full_raster_url"))
 
         # Process all objects and organize them into layers
         object_by_layer = {}
@@ -268,11 +266,8 @@ class DynamoDBDocumentRepository:
                 type=obj_type,
                 bbox=obj_data.get("bbox"),
                 z_index=z_index,
+                content=obj_data.get("content"),
             )
-
-            # Add content if available
-            if "content" in obj_data:
-                pdf_object.content = obj_data.get("content")
 
             # Check if it's a zero area object
             if pdf_object.is_zero_area:
@@ -547,6 +542,34 @@ class DynamoDBDocumentRepository:
         # Return other scalar values as is (strings, booleans, etc.)
         else:
             return value
+
+    @staticmethod
+    def _normalize_dynamodb_types(data):
+        """Convert DynamoDB specific types to standard Python types.
+
+        Args:
+            data: Data returned from DynamoDB that may contain Decimal types
+
+        Returns:
+            Data with Decimal types converted to int or float
+        """
+        if isinstance(data, Decimal):
+            # Convert Decimal to int if it's a whole number, otherwise to float
+            if data % 1 == 0:
+                return int(data)
+            return float(data)
+        elif isinstance(data, list):
+            return [
+                DynamoDBDocumentRepository._normalize_dynamodb_types(item)
+                for item in data
+            ]
+        elif isinstance(data, dict):
+            return {
+                k: DynamoDBDocumentRepository._normalize_dynamodb_types(v)
+                for k, v in data.items()
+            }
+        else:
+            return data
 
     @staticmethod
     def _find_floats(data, path=""):

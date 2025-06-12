@@ -61,21 +61,14 @@ class DocumentSummary(BaseModel):
     """Response for GET /documents/{docId} endpoint."""
 
     document_id: str = Field(..., description="Unique document identifier")
+    name: str = Field(..., description="Original filename")
     status: ProcessingStatus = Field(..., description="Current processing status")
-    pages: List[PageDetail] = Field(..., description="List of pages with basic info")
-
-
-class Layer(BaseModel):
-    """Layer information in PageBundle."""
-
-    z_index: int = Field(..., description="Z-index for rendering order")
-    type: str = Field(
-        ...,
-        pattern="^(text|path|image|shade|annot|form)$",
-        description="Type of objects in this layer",
-    )
-    url: HttpUrl = Field(..., description="URL to layer's rendered image")
-    object_count: int = Field(..., ge=0, description="Number of objects in layer")
+    size_in_bytes: int = Field(..., ge=0, description="File size in bytes")
+    page_count: Optional[int] = Field(None, ge=0, description="Total number of pages")
+    source: str = Field(..., description="Document source (upload, url, etc.)")
+    source_url: Optional[str] = Field(None, description="Source URL if applicable")
+    uploaded: Optional[datetime] = Field(None, description="Upload timestamp")
+    info: Optional[Dict[str, Any]] = Field(None, description="Document metadata")
 
 
 class ObjectMeta(BaseModel):
@@ -89,11 +82,25 @@ class ObjectMeta(BaseModel):
     )
     bbox: List[float] = Field(
         ...,
-        min_items=4,
-        max_items=4,
         description="Bounding box coordinates [x1, y1, x2, y2]",
     )
     z_index: int = Field(..., description="Z-index for rendering order")
+
+
+class Layer(BaseModel):
+    """Layer information in PageBundle."""
+
+    z_index: int = Field(..., description="Z-index for rendering order")
+    type: str = Field(
+        ...,
+        pattern="^(text|path|image|shade|annot|form)$",
+        description="Type of objects in this layer",
+    )
+    url: HttpUrl = Field(..., description="URL to layer's rendered image")
+    object_count: int = Field(..., ge=0, description="Number of objects in layer")
+    objects: List[ObjectMeta] = Field(
+        default_factory=list, description="List of objects in this layer"
+    )
 
 
 class PageSize(BaseModel):
@@ -111,4 +118,6 @@ class PageBundle(BaseModel):
     size: PageSize = Field(..., description="Page dimensions")
     full_raster_url: HttpUrl = Field(..., description="URL to full page raster")
     layers: List[Layer] = Field(..., description="List of layer information")
-    objects: List[ObjectMeta] = Field(..., description="List of object metadata")
+    zero_objects: List[ObjectMeta] = Field(
+        ..., description="List of zero-object metadata"
+    )
