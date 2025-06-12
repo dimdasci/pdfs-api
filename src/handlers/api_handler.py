@@ -4,7 +4,6 @@ from typing import List
 from aws_lambda_powertools.event_handler import APIGatewayHttpResolver, CORSConfig
 from aws_lambda_powertools.logging import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
-from pydantic import HttpUrl
 
 from src.clients.dynamodb import DynamoDBClient
 from src.clients.s3 import S3Client
@@ -12,6 +11,7 @@ from src.config.app import AppConfig
 from src.handlers import (
     handle_get_document,
     handle_get_documents,
+    handle_get_page_bundle,
     handle_upload_document,
 )
 from src.middleware.auth import create_inject_user_context_decorator
@@ -20,14 +20,9 @@ from src.middleware.logging import logging_middleware
 from src.models.api import (
     DocumentListItem,
     DocumentSummary,
-    Layer,
-    ObjectMeta,
     PageBundle,
-    PageDetail,
-    PageSize,
     VersionResponse,
 )
-from src.models.domain.enums import ProcessingStatus
 
 # --- Constants and Setup ---
 logger = Logger()
@@ -86,8 +81,7 @@ def get_documents() -> List[DocumentListItem]:
     Requires authentication (handled by API Gateway Authorizer).
     User context is injected by @inject_user_context.
     """
-    user_id = app.context.get("user_id", "unknown_context_fallback")
-    logger.info("Executing get_documents", extra={"user_id": user_id})
+    logger.info("Executing get_documents")
 
     return handle_get_documents(
         app=app,  # Pass the app instance for context/event access
@@ -105,10 +99,7 @@ def get_document_summary(docId: str) -> DocumentSummary:
     Requires authentication (handled by API Gateway Authorizer).
     User context is injected by @inject_user_context.
     """
-    user_id = app.context.get("user_id", "unknown_context_fallback")
-    logger.info(
-        "Executing get_document_summary", extra={"user_id": user_id, "docId": docId}
-    )
+    logger.info("Executing get_document_summary", extra={"docId": docId})
 
     return handle_get_document(
         app=app, dynamodb_client=dynamodb_client, logger=logger, document_id=docId
@@ -118,65 +109,29 @@ def get_document_summary(docId: str) -> DocumentSummary:
 @app.get("/documents/<docId>/pages/<page>")
 @inject_user_context
 def get_page_bundle(docId: str, page: str) -> PageBundle:
-    """Handle GET /documents/{docId}/pages/{page} (stub).
+    """Handle GET /documents/{docId}/pages/{page}.
 
     Fetches the Page Bundle (layer URLs, object metadata) for a page.
     Requires authentication (handled by API Gateway Authorizer).
     User context is injected by @inject_user_context.
     """
-    user_id = app.context.get("user_id", "unknown_context_fallback")
     logger.info(
         "Executing get_page_bundle",
-        extra={"user_id": user_id, "docId": docId, "page": page},
+        extra={"docId": docId, "page": page},
     )
 
-    # TODO: Implement actual data fetching for docId and page (checking ownership using user_id)
-    # TODO: Validate page number against document page count
-    logger.info(f"Received get page bundle request for {docId}, page {page} (stub)")
+    try:
+        page_number = int(page)
+    except ValueError:
+        raise ValueError(f"Invalid page number: {page}")
 
-    # Simulate auth check and existence
-    if (
-        docId.startswith("nonexistent-doc")
-        or not docId.endswith(user_id[:4])
-        or int(page) > 2
-    ):
-        # TODO: Raise a proper NotFoundError or ForbiddenError exception
-        logger.warning(
-            "Attempt to access non-existent or unauthorized page",
-            extra={"user_id": user_id, "docId": docId, "page": page},
-        )
-        raise Exception("Page not found or access denied (stub exception)")
-
-    # Generate dummy URLs safely using Pydantic's HttpUrl
-    dummy_base_url = "https://dummy.storage.local/"
-
-    return PageBundle(
+    return handle_get_page_bundle(
+        app=app,
+        dynamodb_client=dynamodb_client,
+        s3_client=s3_client,
+        logger=logger,
         document_id=docId,
-        page=int(page),
-        size=PageSize(width=612.0, height=792.0),
-        full_raster_url=HttpUrl(f"{dummy_base_url}{docId}/page{page}/raster.png"),
-        layers=[
-            Layer(
-                z_index=0,
-                type="text",
-                url=HttpUrl(f"{dummy_base_url}{docId}/page{page}/layer0.json"),
-                object_count=15,
-            ),
-            Layer(
-                z_index=1,
-                type="image",
-                url=HttpUrl(f"{dummy_base_url}{docId}/page{page}/layer1.json"),
-                object_count=2,
-            ),
-        ],
-        objects=[
-            ObjectMeta(
-                id="obj1", type="text", bbox=[10.0, 10.0, 100.0, 50.0], z_index=0
-            ),
-            ObjectMeta(
-                id="obj2", type="image", bbox=[150.0, 150.0, 300.0, 400.0], z_index=1
-            ),
-        ],
+        page_number=page_number,
     )
 
 
@@ -184,16 +139,15 @@ def get_page_bundle(docId: str, page: str) -> PageBundle:
 @inject_user_context
 def post_documents_route():
     """Handle POST /documents request."""
-    # Use functools.partial to pass dependencies to the actual handler
-    bound_handler = functools.partial(
-        handle_upload_document,
+    logger.info("Executing post_documents_route")
+
+    return handle_upload_document(
         app=app,  # Pass the app instance for context/event access
         app_config=app_config,
         dynamodb_client=dynamodb_client,
         s3_client=s3_client,
         logger=logger,
     )
-    return bound_handler()
 
 
 # --- Main Lambda Entry Point ---
