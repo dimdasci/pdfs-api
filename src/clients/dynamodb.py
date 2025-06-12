@@ -29,7 +29,7 @@ class DynamoDBClient:
         """
         self.config = config
         self.dynamodb = boto3.resource("dynamodb")
-        self.table = self.dynamodb.Table(config.dynamodb_table_name) # type: ignore
+        self.table = self.dynamodb.Table(config.dynamodb_table_name)  # type: ignore
 
     def put_item(self, item: Dict[str, Any]) -> None:
         """Put an item in DynamoDB.
@@ -174,7 +174,7 @@ class DynamoDBClient:
         """
         query_params = {"KeyConditionExpression": Key("PK").eq(pk)}
         if limit:
-            query_params["Limit"] = limit # type: ignore
+            query_params["Limit"] = limit  # type: ignore
 
         return self._paginated_query(query_params, limit)
 
@@ -200,7 +200,7 @@ class DynamoDBClient:
         key_condition = Key("PK").eq(pk) & Key("SK").begins_with(sk_prefix)
         query_params = {"KeyConditionExpression": key_condition}
         if limit:
-            query_params["Limit"] = limit # type: ignore
+            query_params["Limit"] = limit  # type: ignore
 
         return self._paginated_query(query_params, limit)
 
