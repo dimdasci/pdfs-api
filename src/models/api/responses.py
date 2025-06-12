@@ -61,8 +61,14 @@ class DocumentSummary(BaseModel):
     """Response for GET /documents/{docId} endpoint."""
 
     document_id: str = Field(..., description="Unique document identifier")
+    name: str = Field(..., description="Original filename")
     status: ProcessingStatus = Field(..., description="Current processing status")
-    pages: List[PageDetail] = Field(..., description="List of pages with basic info")
+    size_in_bytes: int = Field(..., ge=0, description="File size in bytes")
+    page_count: Optional[int] = Field(None, ge=0, description="Total number of pages")
+    source: str = Field(..., description="Document source (upload, url, etc.)")
+    source_url: Optional[str] = Field(None, description="Source URL if applicable")
+    uploaded: Optional[datetime] = Field(None, description="Upload timestamp")
+    info: Optional[Dict[str, Any]] = Field(None, description="Document metadata")
 
 
 class Layer(BaseModel):
@@ -89,8 +95,6 @@ class ObjectMeta(BaseModel):
     )
     bbox: List[float] = Field(
         ...,
-        min_items=4,
-        max_items=4,
         description="Bounding box coordinates [x1, y1, x2, y2]",
     )
     z_index: int = Field(..., description="Z-index for rendering order")
