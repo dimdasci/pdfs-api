@@ -36,9 +36,7 @@ class DocumentRepository(Protocol):
         """
         ...
 
-    def list_documents(
-        self, user_id: str, status: Optional[str] = None, limit: int = 20
-    ) -> List[Document]:
+    def list_documents(self, user_id: str) -> List[Document]:
         """List documents for a user, optionally filtered by status.
 
         Args:
