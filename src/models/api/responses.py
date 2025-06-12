@@ -71,19 +71,6 @@ class DocumentSummary(BaseModel):
     info: Optional[Dict[str, Any]] = Field(None, description="Document metadata")
 
 
-class Layer(BaseModel):
-    """Layer information in PageBundle."""
-
-    z_index: int = Field(..., description="Z-index for rendering order")
-    type: str = Field(
-        ...,
-        pattern="^(text|path|image|shade|annot|form)$",
-        description="Type of objects in this layer",
-    )
-    url: HttpUrl = Field(..., description="URL to layer's rendered image")
-    object_count: int = Field(..., ge=0, description="Number of objects in layer")
-
-
 class ObjectMeta(BaseModel):
     """Object metadata in PageBundle."""
 
@@ -98,6 +85,22 @@ class ObjectMeta(BaseModel):
         description="Bounding box coordinates [x1, y1, x2, y2]",
     )
     z_index: int = Field(..., description="Z-index for rendering order")
+
+
+class Layer(BaseModel):
+    """Layer information in PageBundle."""
+
+    z_index: int = Field(..., description="Z-index for rendering order")
+    type: str = Field(
+        ...,
+        pattern="^(text|path|image|shade|annot|form)$",
+        description="Type of objects in this layer",
+    )
+    url: HttpUrl = Field(..., description="URL to layer's rendered image")
+    object_count: int = Field(..., ge=0, description="Number of objects in layer")
+    objects: List[ObjectMeta] = Field(
+        default_factory=list, description="List of objects in this layer"
+    )
 
 
 class PageSize(BaseModel):
@@ -115,4 +118,6 @@ class PageBundle(BaseModel):
     size: PageSize = Field(..., description="Page dimensions")
     full_raster_url: HttpUrl = Field(..., description="URL to full page raster")
     layers: List[Layer] = Field(..., description="List of layer information")
-    objects: List[ObjectMeta] = Field(..., description="List of object metadata")
+    zero_objects: List[ObjectMeta] = Field(
+        ..., description="List of zero-object metadata"
+    )
