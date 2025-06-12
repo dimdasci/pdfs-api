@@ -22,8 +22,6 @@ class PDFObject(BaseModel):
     type: PDFObjectType = Field(..., description="Type of PDF object")
     bbox: List[float] = Field(
         ...,
-        min_items=4,
-        max_items=4,
         description="Bounding box coordinates [x1, y1, x2, y2]",
     )
     z_index: Optional[int] = Field(None, description="Z-index for rendering order")
