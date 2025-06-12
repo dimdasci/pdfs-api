@@ -222,7 +222,6 @@ class DynamoDBDocumentRepository:
             "trimbox": self._convert_to_dynamodb_type(page.trimbox),
             "artbox": self._convert_to_dynamodb_type(page.artbox),
             "bbox": self._convert_to_dynamodb_type(page.bbox),
-            "full_raster_url": getattr(page, "full_raster_url", None),
             "layers": self._convert_to_dynamodb_type(layers),
             "objects": self._convert_to_dynamodb_type(objects),
             "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -252,10 +251,6 @@ class DynamoDBDocumentRepository:
             artbox=item.get("artbox"),
             bbox=item.get("bbox"),
         )
-
-        # Add full_raster_url if available
-        if "full_raster_url" in item:
-            setattr(page, "full_raster_url", item.get("full_raster_url"))
 
         # Process all objects and organize them into layers
         object_by_layer = {}
