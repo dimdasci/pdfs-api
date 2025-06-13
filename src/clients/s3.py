@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from ..config.app import AppConfig
@@ -23,37 +24,6 @@ class S3Client:
         self.config = config
         self.s3 = boto3.client("s3")
         self.bucket = config.pdf_bucket_name
-
-    def generate_presigned_url(self, key: str, expires_in: int = 3600) -> str:
-        """Generate a presigned URL for uploading a file.
-
-        Args:
-            key: S3 object key
-            expires_in: URL expiration time in seconds
-
-        Returns:
-            Presigned URL
-
-        Raises:
-            StorageError: If URL generation fails
-        """
-        try:
-            url = self.s3.generate_presigned_url(
-                "put_object",
-                Params={
-                    "Bucket": self.bucket,
-                    "Key": key,
-                    "ContentType": "application/pdf",
-                },
-                ExpiresIn=expires_in,
-            )
-            return url
-        except ClientError as e:
-            raise StorageError(
-                f"Failed to generate presigned URL",
-                code="generate_presigned_url_failed",
-                details={"e": str(e)},
-            )
 
     def upload_file(self, key: str, content: bytes) -> None:
         """Upload a file to S3.
@@ -80,12 +50,18 @@ class S3Client:
                 details={"e": str(e)},
             )
 
-    def get_object_url(self, key: str, expires_in: Optional[int] = None) -> str:
+    def get_object_url(
+        self,
+        key: str,
+        expires_in: Optional[int] = 3600,
+        response_content_type: Optional[str] = None,
+    ) -> str:
         """Get a URL for an S3 object.
 
         Args:
             key: S3 object key
-            expires_in: URL expiration time in seconds (optional)
+            expires_in: URL expiration time in seconds (default: 3600 seconds/1 hour)
+            response_content_type: Content type for the response (optional)
 
         Returns:
             Object URL
@@ -94,14 +70,45 @@ class S3Client:
             StorageError: If URL generation fails
         """
         try:
-            if expires_in:
-                url = self.s3.generate_presigned_url(
-                    "get_object",
-                    Params={"Bucket": self.bucket, "Key": key},
-                    ExpiresIn=expires_in,
-                )
-            else:
-                url = f"https://{self.bucket}.s3.amazonaws.com/{key}"
+            # Default expiration to 1 hour if not specified
+            expiration = expires_in if expires_in is not None else 3600
+
+            params = {
+                "Bucket": self.bucket,
+                "Key": key,
+            }
+
+            # Add response content type if specified
+            if response_content_type:
+                params["ResponseContentType"] = response_content_type
+
+            # Add cache control for better performance
+            params["ResponseCacheControl"] = "max-age=3600"
+
+            # Create a boto3 client with custom configuration to ensure CORS works
+            s3_client_config = Config(
+                signature_version="s3v4",  # Use SigV4 for compatibility with CORS
+                s3={"addressing_style": "virtual"},  # Use virtual-hosted style URLs
+            )
+
+            session = boto3.Session()
+            s3_client_with_cors = session.client(
+                "s3",
+                config=s3_client_config,
+                region_name=self.s3.meta.region_name,
+            )
+
+            # Add explicit headers for better browser handling
+            params["ResponseContentDisposition"] = "inline"
+
+            # Set content language (this is an allowed parameter)
+            params["ResponseContentLanguage"] = "en-US"
+
+            url = s3_client_with_cors.generate_presigned_url(
+                "get_object",
+                Params=params,
+                ExpiresIn=expiration,
+            )
             return url
         except ClientError as e:
             raise StorageError(
