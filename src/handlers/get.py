@@ -121,6 +121,7 @@ def handle_get_page_bundle(
     full_raster_url = s3_client.get_object_url(
         f"{page_path}/page.png",
         expires_in=3600,
+        response_content_type="image/png",
     )
 
     # 4. Create layer information
@@ -129,6 +130,7 @@ def handle_get_page_bundle(
         layer_url = s3_client.get_object_url(
             f"{page_path}/l{z_index:03d}.png",
             expires_in=3600,
+            response_content_type="image/png",
         )
         layers.append(
             Layer(
